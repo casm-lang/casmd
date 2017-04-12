@@ -34,12 +34,9 @@ endif()
 foreach( DEPENDENCY
     stdhl
     pass
-    csel-ir
-    csel-rt
     casm-ir
     casm-fe
     casm-tc
-    casm-rt
     )
   if( NOT TARGET ${DEPENDENCY} )
     add_subdirectory( ${LIBS}/${DEPENDENCY} lib/${DEPENDENCY} )
@@ -62,11 +59,8 @@ include_directories(
   ${LIBS}/gtest/googletest
   ${LIBS}/gtest/googletest/include
   ${LIBS}/casm-tc
-  ${LIBS}/casm-rt
   ${LIBS}/casm-fe
   ${LIBS}/casm-ir
-  ${LIBS}/csel-rt
-  ${LIBS}/csel-ir
   ${LIBS}/pass
   ${LIBS}/stdhl
 )
@@ -102,11 +96,8 @@ add_executable( ${TARGET}
 )
 
 target_link_libraries( ${TARGET}
-  casm-rt
   casm-fe
   casm-ir
-  csel-rt
-  csel-ir
   pass
   stdhl
 )
@@ -121,21 +112,15 @@ add_executable( ${TARGET}-check
   ${LIBS}/gtest/googletest/src/gtest-all.cc  
   $<TARGET_OBJECTS:${TARGET}-test>
   $<TARGET_OBJECTS:casm-tc-test>
-  # $<TARGET_OBJECTS:casm-rt-test>
   $<TARGET_OBJECTS:casm-fe-test>
   $<TARGET_OBJECTS:casm-ir-test>
-  # $<TARGET_OBJECTS:csel-ir-test>
-  # $<TARGET_OBJECTS:csel-rt-test>
   $<TARGET_OBJECTS:stdhl-test>
   $<TARGET_OBJECTS:pass-test>
 )
 
 target_link_libraries( ${TARGET}-check
-  casm-rt
   casm-fe
   casm-ir
-  csel-rt
-  csel-ir
   pass
   stdhl
   pthread
@@ -148,10 +133,10 @@ add_library( ${TARGET}-benchmark OBJECT
   
 add_executable( ${TARGET}-run
   $<TARGET_OBJECTS:${TARGET}-benchmark>
-#  $<TARGET_OBJECTS:pass-benchmark>
-#  $<TARGET_OBJECTS:stdhl-benchmark>
-#  $<TARGET_OBJECTS:casm-ir-benchmark>
-#  $<TARGET_OBJECTS:casm-fe-benchmark>
+ $<TARGET_OBJECTS:pass-benchmark>
+ $<TARGET_OBJECTS:stdhl-benchmark>
+ $<TARGET_OBJECTS:casm-ir-benchmark>
+ $<TARGET_OBJECTS:casm-fe-benchmark>
   $<TARGET_OBJECTS:casm-tc-benchmark>
 )
 
