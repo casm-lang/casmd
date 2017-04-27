@@ -39,8 +39,8 @@
     TODO
 */
 
-#define DESCRIPTION                                                            \
-    "Corinthian Abstract State Machine (CASM) Language Server\n"
+static const std::string DESCRIPTION
+    = "Corinthian Abstract State Machine (CASM) Language Server\n";
 
 int main( int argc, const char* argv[] )
 {
@@ -49,61 +49,68 @@ int main( int argc, const char* argv[] )
     log.setSource(
         libstdhl::make< libstdhl::Log::Source >( argv[ 0 ], DESCRIPTION ) );
 
-    auto flush = [&pm]() {
-        libstdhl::Log::StringFormatter f;
+    auto flush = [&pm, &argv]() {
+        libstdhl::Log::ApplicationFormatter f( argv[ 0 ] );
         libstdhl::Log::OutputStreamSink c( std::cerr, f );
         pm.stream().flush( c );
     };
 
-    const char* file_name = 0;
+    std::vector< std::string > files_input;
 
     libstdhl::Args options( argc, argv, libstdhl::Args::DEFAULT,
-        [&file_name, &log]( const char* arg ) {
-            static int cnt = 0;
-            cnt++;
+        [&log, &files_input]( const char* arg ) {
 
-            if( cnt > 1 )
+            if( files_input.size() > 0 )
             {
-                log.error( "too many file names passed" );
+                log.error( "too many files, input file '" + files_input.front()
+                           + "' cannot be combined with file '"
+                           + arg
+                           + "'" );
                 return 1;
             }
 
-            file_name = arg;
+            files_input.emplace_back( arg );
             return 0;
         } );
 
     options.add( 't', "test-case-profile", libstdhl::Args::NONE,
-        "Display the unique test profile identifier and exit.",
-        [&options]( const char* option ) {
-            std::cout << std::string( libcasm_tc::Profile::get(
-                             libcasm_tc::Profile::LANGUAGE_SERVER ) )
+        "display the unique test profile identifier",
+        [&options]( const char* ) {
+
+            std::cout << libcasm_tc::Profile::get(
+                             libcasm_tc::Profile::LANGUAGE_SERVER )
                       << "\n";
+
             return -1;
         } );
 
     options.add( 'h', "help", libstdhl::Args::NONE,
-        "Display the program usage and synopsis and exit.",
-        [&options]( const char* option ) {
-            fprintf( stderr, DESCRIPTION
-                "\n"
-                "usage: %s [options] <file>\n"
-                "\n"
-                "options:\n",
-                options.programName() );
+        "display usage and synopsis", [&log, &options]( const char* ) {
 
-            options.m_usage();
+            log.output( "\n" + DESCRIPTION + "\n" + log.source()->name()
+                        + ": usage: [options] <file>\n"
+                        + "\n"
+                        + "options: \n"
+                        + options.usage()
+                        + "\n" );
+
             return -1;
         } );
 
     options.add( 'v', "version", libstdhl::Args::NONE,
-        "Display interpreter version information",
-        [&options]( const char* option ) {
-            fprintf( stderr, DESCRIPTION
-                "\n"
-                "%s: version: %s [ %s %s ]\n"
-                "\n"
-                "%s",
-                options.programName(), VERSION, __DATE__, __TIME__, LICENSE );
+        "display version information", [&log]( const char* ) {
+
+            log.output( "\n" + DESCRIPTION + "\n" + log.source()->name()
+                        + ": version: "
+                        + VERSION
+                        + " [ "
+                        + __DATE__
+                        + " "
+                        + __TIME__
+                        + " ]\n"
+                        + "\n"
+                        + LICENSE );
+
             return -1;
         } );
 
@@ -111,13 +118,11 @@ int main( int argc, const char* argv[] )
     {
         libpass::PassInfo& pi = *p.second;
 
-        if( pi.argChar() == 0 && pi.argString() == 0 )
+        if( pi.argChar() or pi.argString() )
         {
-            continue;
+            options.add( pi.argChar(), pi.argString(), libstdhl::Args::NONE,
+                pi.description(), pi.argAction() );
         }
-
-        options.add( pi.argChar(), pi.argString(), libstdhl::Args::NONE,
-            pi.description(), pi.argAction() );
     }
 
     if( auto ret = options.parse( log ) )
@@ -134,7 +139,7 @@ int main( int argc, const char* argv[] )
         }
     }
 
-    if( !file_name )
+    if( files_input.size() == 0 )
     {
         log.error( "no input file provided" );
         flush();
@@ -145,13 +150,13 @@ int main( int argc, const char* argv[] )
     // and configure their setup hooks if desired
 
     pm.add< libpass::LoadFilePass >(
-        [&file_name]( libpass::LoadFilePass& pass ) {
-            pass.setFilename( file_name );
+        [&files_input]( libpass::LoadFilePass& pass ) {
+            pass.setFilename( files_input.front() );
 
         } );
 
     pm.add< libcasm_fe::SourceToAstPass >();
-    pm.add< libcasm_fe::TypeCheckPass >();
+    pm.add< libcasm_fe::TypeInferencePass >();
 
     int result = 0;
 
