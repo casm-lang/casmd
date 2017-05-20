@@ -1,26 +1,25 @@
 #
-#   Copyright (c) 2014-2017 CASM Organization
+#   Copyright (c) 2017 CASM Organization
 #   All rights reserved.
 #
 #   Developed by: Philipp Paulweber
 #                 Emmanuel Pescosta
-#                 Florian Hahn
-#                 https://github.com/casm-lang/casms
+#                 https://github.com/casm-lang/casmd
 #
-#   This file is part of casms.
+#   This file is part of casmd.
 #
-#   casms is free software: you can redistribute it and/or modify
+#   casmd is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation, either version 3 of the License, or
 #   (at your option) any later version.
 #
-#   casms is distributed in the hope that it will be useful,
+#   casmd is distributed in the hope that it will be useful,
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 #   GNU General Public License for more details.
 #
 #   You should have received a copy of the GNU General Public License
-#   along with casms. If not, see <http://www.gnu.org/licenses/>.
+#   along with casmd. If not, see <http://www.gnu.org/licenses/>.
 #
 
 cmake_minimum_required( VERSION 3.1 )
@@ -35,6 +34,7 @@ foreach( DEPENDENCY
     stdhl
     pass
     casm-ir
+    casm-rt
     casm-fe
     casm-tc
     )
@@ -48,7 +48,7 @@ file( GLOB_RECURSE CXX_SRC_FILES "src/*.cpp" )
 file( GLOB_RECURSE CXX_UTS_FILES "uts/*.cpp" )
 
 
-set( TARGET casms )
+set( TARGET casmd )
 project( ${TARGET} )
 
 
@@ -60,6 +60,7 @@ include_directories(
   ${LIBS}/gtest/googletest/include
   ${LIBS}/casm-tc
   ${LIBS}/casm-fe
+  ${LIBS}/casm-rt
   ${LIBS}/casm-ir
   ${LIBS}/pass
   ${LIBS}/stdhl
@@ -71,6 +72,8 @@ set( CMAKE_CXX_FLAGS          "${CMAKE_CXX_FLAGS}          -std=c++11 -Wall" )
 set( CMAKE_CXX_FLAGS_DEBUG    "${CMAKE_CXX_FLAGS_DEBUG}    -O0" )
 set( CMAKE_CXX_FLAGS_RELEASE  "${CMAKE_CXX_FLAGS_RELEASE}  -O3" )
 set( CMAKE_CXX_FLAGS_SANITIZE "${CMAKE_CXX_FLAGS_SANITIZE} -O1 -Wextra -g -fno-omit-frame-pointer -fno-optimize-sibling-calls -fsanitize=undefined -fsanitize=address" )
+
+set( CMAKE_EXE_LINKER_FLAGS   "${CMAKE_EXE_LINKER_FLAGS}   -static-libgcc -static-libstdc++" )
 
 
 set( VERSION ${CMAKE_CURRENT_SOURCE_DIR}/obj/version.h )
@@ -97,6 +100,7 @@ add_executable( ${TARGET}
 
 target_link_libraries( ${TARGET}
   casm-fe
+  casm-rt
   casm-ir
   pass
   stdhl
@@ -120,10 +124,10 @@ add_executable( ${TARGET}-check
 
 target_link_libraries( ${TARGET}-check
   casm-fe
+  casm-rt
   casm-ir
   pass
   stdhl
-  pthread
 )
 
 

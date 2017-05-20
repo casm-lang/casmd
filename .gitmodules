@@ -19,3 +19,6 @@
 [submodule "lib/hayai"]
 	path = lib/hayai
 	url = https://github.com/nickbruun/hayai
+[submodule "lib/casm-rt"]
+	path = lib/casm-rt
+	url = git@github.com:casm-lang/libcasm-rt
