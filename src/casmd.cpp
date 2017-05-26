@@ -28,6 +28,10 @@
 #include "libpass.h"
 #include "libstdhl.h"
 
+#include "../stdhl/cpp/network/udp/IPv4.h"
+
+#include "../stdhl/cpp/network/Lsp.h"
+
 #include "libcasm-fe.h"
 #include "libcasm-ir.h"
 #include "libcasm-tc.h"
@@ -39,8 +43,49 @@
 */
 
 static const std::string DESCRIPTION
-    = "Corinthian Abstract State Machine (CASM) Language Server/Service "
-      "Daemon\n";
+    = "Corinthian Abstract State Machine (CASM) Language "
+      "Server/Service Daemon\n";
+
+using namespace libstdhl;
+using namespace Network;
+using namespace LSP;
+
+class LanguageServer final : public ServerInterface
+{
+  public:
+    LanguageServer( Logger& log )
+    : ServerInterface()
+    , m_log( log )
+    {
+        m_log.info( "started LSP" );
+    }
+
+    InitializeResult initialize( const InitializeParams& params ) override
+    {
+        m_log.info( __FUNCTION__ );
+        // throw Exception( "init req did not work!", InitializeError( false )
+        // );
+        return InitializeResult( ServerCapabilities() );
+    }
+
+    void initialized( void ) noexcept override
+    {
+        m_log.info( __FUNCTION__ );
+    }
+
+    void shutdown( void ) override
+    {
+        m_log.info( __FUNCTION__ );
+    }
+
+    void exit( void ) noexcept override
+    {
+        m_log.info( __FUNCTION__ );
+    }
+
+  private:
+    Logger& m_log;
+};
 
 int main( int argc, const char* argv[] )
 {
@@ -55,27 +100,38 @@ int main( int argc, const char* argv[] )
         pm.stream().flush( c );
     };
 
-    std::vector< std::string > files_input;
+    std::unordered_map< std::string, std::vector< std::string > > setting;
 
-    libstdhl::Args options( argc, argv, libstdhl::Args::DEFAULT,
-        [&log, &files_input]( const char* arg ) {
+    libstdhl::Args options(
+        argc, argv, libstdhl::Args::DEFAULT, [&]( const char* arg ) {
 
-            if( files_input.size() > 0 )
+            if( strcmp( arg, "lsp" ) == 0 )
             {
-                log.error( "too many files, input file '" + files_input.front()
-                           + "' cannot be combined with file '"
-                           + arg
-                           + "'" );
+                if( setting[ "mode" ].size() > 0 )
+                {
+                    log.error( "already defined mode '"
+                               + setting[ "mode" ].front()
+                               + "', unable to use additional provided mode '"
+                               + std::string( arg )
+                               + "'" );
+                    return -1;
+                }
+
+                setting[ "mode" ].emplace_back( arg );
+            }
+            else
+            {
+                log.error(
+                    "invalid mode '" + std::string( arg )
+                    + "' found, please refer to --help for more information" );
                 return 1;
             }
 
-            files_input.emplace_back( arg );
             return 0;
         } );
 
     options.add( 't', "test-case-profile", libstdhl::Args::NONE,
-        "display the unique test profile identifier",
-        [&options]( const char* ) {
+        "display the unique test profile identifier", [&]( const char* ) {
 
             std::cout << libcasm_tc::Profile::get(
                              libcasm_tc::Profile::LANGUAGE_SERVER )
@@ -84,21 +140,25 @@ int main( int argc, const char* argv[] )
             return -1;
         } );
 
-    options.add( 'h', "help", libstdhl::Args::NONE,
-        "display usage and synopsis", [&log, &options]( const char* ) {
+    options
+        .add( 'h', "help", libstdhl::Args::NONE, "display usage and synopsis",
+            [&]( const char* ) {
 
-            log.output( "\n" + DESCRIPTION + "\n" + log.source()->name()
-                        + ": usage: [options] <file>\n"
+                log.output( "\n" + DESCRIPTION + "\n" + log.source()->name()
+                        + ": usage: [options] mode\n"
+                        + "\n"
+                        + "mode: \n"
+                        + "  lsp                            language server protocol\n"
                         + "\n"
                         + "options: \n"
                         + options.usage()
                         + "\n" );
 
-            return -1;
-        } );
+                return -1;
+            } );
 
     options.add( 'v', "version", libstdhl::Args::NONE,
-        "display version information", [&log]( const char* ) {
+        "display version information", [&]( const char* ) {
 
             log.output( "\n" + DESCRIPTION + "\n" + log.source()->name()
                         + ": version: "
@@ -114,16 +174,24 @@ int main( int argc, const char* argv[] )
             return -1;
         } );
 
-    for( auto& p : libpass::PassRegistry::registeredPasses() )
-    {
-        libpass::PassInfo& pi = *p.second;
+    options.add( "udp4", libstdhl::Args::REQUIRED, "use a UDP IPv4 connection",
+        [&]( const char* arg ) {
 
-        if( pi.argChar() or pi.argString() )
-        {
-            options.add( pi.argChar(), pi.argString(), libstdhl::Args::NONE,
-                pi.description(), pi.argAction() );
-        }
-    }
+            setting[ "udp4" ].emplace_back( arg );
+            return 0;
+        },
+        "host:port" );
+
+    // for( auto& p : libpass::PassRegistry::registeredPasses() )
+    // {
+    //     libpass::PassInfo& pi = *p.second;
+
+    //     if( pi.argChar() or pi.argString() )
+    //     {
+    //         options.add( pi.argChar(), pi.argString(), libstdhl::Args::NONE,
+    //             pi.description(), pi.argAction() );
+    //     }
+    // }
 
     if( auto ret = options.parse( log ) )
     {
@@ -139,9 +207,9 @@ int main( int argc, const char* argv[] )
         }
     }
 
-    if( files_input.size() == 0 )
+    if( setting[ "mode" ].size() == 0 )
     {
-        log.error( "no input file provided" );
+        log.error( "no mode provided, please see --help for more information" );
         flush();
         return 2;
     }
@@ -149,14 +217,14 @@ int main( int argc, const char* argv[] )
     // register all wanted passes
     // and configure their setup hooks if desired
 
-    pm.add< libpass::LoadFilePass >(
-        [&files_input]( libpass::LoadFilePass& pass ) {
-            pass.setFilename( files_input.front() );
+    // pm.add< libpass::LoadFilePass >(
+    //     [&files_input]( libpass::LoadFilePass& pass ) {
+    //         pass.setFilename( files_input.front() );
 
-        } );
+    //     } );
 
-    pm.add< libcasm_fe::SourceToAstPass >();
-    pm.add< libcasm_fe::TypeInferencePass >();
+    // pm.add< libcasm_fe::SourceToAstPass >();
+    // pm.add< libcasm_fe::TypeInferencePass >();
 
     int result = 0;
 
@@ -174,7 +242,48 @@ int main( int argc, const char* argv[] )
 
     flush();
 
-    return result;
+    libstdhl::Network::UDP::IPv4 iface( setting[ "udp4" ].front() );
+    iface.connect();
+
+    LanguageServer server( log );
+
+    while( true )
+    {
+        try
+        {
+            std::string in;
+            const auto client = iface.receive( in );
+
+            if( in.size() == 0 )
+            {
+                continue;
+            }
+
+            log.debug( "UDP: " + in + "\n" );
+            flush();
+
+            const auto request = libstdhl::Network::LSP::Packet( in );
+            log.info( "REQ: " + request.dump( true ) + "\n" );
+            flush();
+
+            request.process( server );
+
+            server.flush( [&]( const Message& response ) {
+                log.info( "ACK: " + response.dump( true ) + "\n" );
+                flush();
+                const auto packet = libstdhl::Network::LSP::Packet( response );
+                iface.send( packet, client );
+            } );
+        }
+        catch( const std::exception& e )
+        {
+            log.error( e.what() );
+            flush();
+            usleep( 1000 );
+        }
+    }
+
+    return 0;
 }
 
 //
