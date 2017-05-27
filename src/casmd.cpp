@@ -28,6 +28,7 @@
 #include "libpass.h"
 #include "libstdhl.h"
 
+#include "../stdhl/cpp/network/stream/Stdio.h"
 #include "../stdhl/cpp/network/udp/IPv4.h"
 
 #include "../stdhl/cpp/network/Lsp.h"
@@ -87,6 +88,13 @@ class LanguageServer final : public ServerInterface
     Logger& m_log;
 };
 
+static constexpr const char* MODE = "mode";
+static constexpr const char* MODE_LSP = "lsp";
+
+static constexpr const char* CONN = "connection";
+static constexpr const char* CONN_UDP4 = "udp4";
+static constexpr const char* CONN_STDIO = "stdio";
+
 int main( int argc, const char* argv[] )
 {
     libpass::PassManager pm;
@@ -94,7 +102,7 @@ int main( int argc, const char* argv[] )
     log.setSource(
         libstdhl::make< libstdhl::Log::Source >( argv[ 0 ], DESCRIPTION ) );
 
-    auto flush = [&pm, &argv]() {
+    auto flush = [&]( void ) {
         libstdhl::Log::ApplicationFormatter f( argv[ 0 ] );
         libstdhl::Log::OutputStreamSink c( std::cerr, f );
         pm.stream().flush( c );
@@ -105,19 +113,19 @@ int main( int argc, const char* argv[] )
     libstdhl::Args options(
         argc, argv, libstdhl::Args::DEFAULT, [&]( const char* arg ) {
 
-            if( strcmp( arg, "lsp" ) == 0 )
+            if( strcmp( arg, MODE_LSP ) == 0 )
             {
-                if( setting[ "mode" ].size() > 0 )
+                if( setting[ MODE ].size() > 0 )
                 {
                     log.error( "already defined mode '"
-                               + setting[ "mode" ].front()
+                               + setting[ MODE ].front()
                                + "', unable to use additional provided mode '"
                                + std::string( arg )
                                + "'" );
                     return -1;
                 }
 
-                setting[ "mode" ].emplace_back( arg );
+                setting[ MODE ].emplace_back( arg );
             }
             else
             {
@@ -174,13 +182,21 @@ int main( int argc, const char* argv[] )
             return -1;
         } );
 
-    options.add( "udp4", libstdhl::Args::REQUIRED, "use a UDP IPv4 connection",
+    options.add( CONN_UDP4, libstdhl::Args::REQUIRED,
+        "use a UDP IPv4 socket stream connection",
         [&]( const char* arg ) {
-
-            setting[ "udp4" ].emplace_back( arg );
+            setting[ CONN ].emplace_back( CONN_UDP4 );
+            setting[ CONN_UDP4 ].emplace_back( arg );
             return 0;
         },
         "host:port" );
+
+    options.add( CONN_STDIO, libstdhl::Args::NONE,
+        "use a standard input/output stream", [&]( const char* arg ) {
+            setting[ CONN ].emplace_back( CONN_STDIO );
+            setting[ CONN_STDIO ].emplace_back( arg );
+            return 0;
+        } );
 
     // for( auto& p : libpass::PassRegistry::registeredPasses() )
     // {
@@ -207,11 +223,153 @@ int main( int argc, const char* argv[] )
         }
     }
 
-    if( setting[ "mode" ].size() == 0 )
+    if( setting[ MODE ].size() != 1 )
     {
         log.error( "no mode provided, please see --help for more information" );
         flush();
         return 2;
+    }
+
+    if( setting[ CONN ].size() > 1 )
+    {
+        log.error( "to many connection kinds provided, only use one kind" );
+        flush();
+        return 2;
+    }
+
+    if( setting[ CONN ].size() == 0 )
+    {
+        log.info( "no connection provided, using '--stdio'" );
+        flush();
+        setting[ CONN ].emplace_back( CONN_STDIO );
+    }
+
+    const auto& mode = setting[ MODE ].front();
+    const auto& conn = setting[ CONN ].front();
+    const auto& kind = setting[ conn ].front();
+    const auto prefix = mode + "@" + conn + ": ";
+
+    switch( String::value( mode ) )
+    {
+        case String::value( MODE_LSP ):
+        {
+            // language server protocol mode
+            LanguageServer server( log );
+
+            switch( String::value( conn ) )
+            {
+                case String::value( CONN_UDP4 ):
+                {
+                    auto iface = libstdhl::Network::UDP::IPv4( kind );
+
+                    iface.connect();
+
+                    while( true )
+                    {
+                        try
+                        {
+                            std::string in;
+                            const auto client = iface.receive( in );
+
+                            if( in.size() == 0 )
+                            {
+                                continue;
+                            }
+
+                            log.debug( prefix + in + "\n" );
+                            flush();
+
+                            const auto request
+                                = libstdhl::Network::LSP::Packet( in );
+                            log.info( prefix + "REQ: " + request.dump( true )
+                                      + "\n" );
+                            flush();
+
+                            request.process( server );
+
+                            server.flush( [&]( const Message& response ) {
+                                log.info(
+                                    prefix + "ACK: " + response.dump( true )
+                                    + "\n" );
+                                flush();
+                                const auto packet
+                                    = libstdhl::Network::LSP::Packet(
+                                        response );
+                                iface.send( packet, client );
+                            } );
+                        }
+                        catch( const std::exception& e )
+                        {
+                            log.error( e.what() );
+                            flush();
+                            usleep( 1000 );
+                        }
+                    }
+
+                    iface.disconnect();
+
+                    break;
+                }
+                case String::value( CONN_STDIO ):
+                {
+                    while( true )
+                    {
+                        try
+                        {
+                            std::string in;
+
+                            while( in.size() == 0 or not std::cin.eof() )
+                            {
+                                std::cin >> in;
+                            }
+
+                            log.debug( prefix + in + "\n" );
+                            flush();
+
+                            const auto request
+                                = libstdhl::Network::LSP::Packet( in );
+                            log.info( prefix + "REQ: " + request.dump( true )
+                                      + "\n" );
+                            flush();
+
+                            request.process( server );
+
+                            server.flush( [&]( const Message& response ) {
+                                log.info(
+                                    prefix + "ACK: " + response.dump( true )
+                                    + "\n" );
+                                flush();
+                                const auto packet
+                                    = libstdhl::Network::LSP::Packet(
+                                        response );
+                                std::cout << packet.dump();
+                            } );
+                        }
+                        catch( const std::exception& e )
+                        {
+                            log.error( e.what() );
+                            flush();
+                            usleep( 1000 );
+                        }
+                    }
+
+                    break;
+                }
+                default:
+                {
+                    log.error( "unimplemented connection '" + conn
+                               + "' selected, aborting" );
+                    flush();
+                    return -1;
+                }
+            }
+        }
+        default:
+        {
+            log.error( "unimplemented mode '" + mode + "' selected, aborting" );
+            flush();
+            return -1;
+        }
     }
 
     // register all wanted passes
@@ -226,63 +384,21 @@ int main( int argc, const char* argv[] )
     // pm.add< libcasm_fe::SourceToAstPass >();
     // pm.add< libcasm_fe::TypeInferencePass >();
 
-    int result = 0;
+    // int result = 0;
 
-    try
-    {
-        pm.run( flush );
-    }
-    catch( std::exception& e )
-    {
-        log.error( "pass manager triggered an exception: '"
-                   + std::string( e.what() )
-                   + "'" );
-        result = -1;
-    }
+    // try
+    // {
+    //     pm.run( flush );
+    // }
+    // catch( std::exception& e )
+    // {
+    //     log.error( "pass manager triggered an exception: '"
+    //                + std::string( e.what() )
+    //                + "'" );
+    //     result = -1;
+    // }
 
     flush();
-
-    libstdhl::Network::UDP::IPv4 iface( setting[ "udp4" ].front() );
-    iface.connect();
-
-    LanguageServer server( log );
-
-    while( true )
-    {
-        try
-        {
-            std::string in;
-            const auto client = iface.receive( in );
-
-            if( in.size() == 0 )
-            {
-                continue;
-            }
-
-            log.debug( "UDP: " + in + "\n" );
-            flush();
-
-            const auto request = libstdhl::Network::LSP::Packet( in );
-            log.info( "REQ: " + request.dump( true ) + "\n" );
-            flush();
-
-            request.process( server );
-
-            server.flush( [&]( const Message& response ) {
-                log.info( "ACK: " + response.dump( true ) + "\n" );
-                flush();
-                const auto packet = libstdhl::Network::LSP::Packet( response );
-                iface.send( packet, client );
-            } );
-        }
-        catch( const std::exception& e )
-        {
-            log.error( e.what() );
-            flush();
-            usleep( 1000 );
-        }
-    }
-
     return 0;
 }
 
