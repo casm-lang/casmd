@@ -28,10 +28,9 @@
 #include "libpass.h"
 #include "libstdhl.h"
 
-#include "../stdhl/cpp/network/stream/Stdio.h"
-#include "../stdhl/cpp/network/udp/IPv4.h"
-
+#include "../stdhl/cpp/file/TextDocument.h"
 #include "../stdhl/cpp/network/Lsp.h"
+#include "../stdhl/cpp/network/udp/IPv4.h"
 
 #include "libcasm-fe.h"
 #include "libcasm-ir.h"
@@ -51,6 +50,119 @@ using namespace libstdhl;
 using namespace Network;
 using namespace LSP;
 
+class DiagnosticFormatter : public libstdhl::Log::StringFormatter
+{
+  public:
+    DiagnosticFormatter( const std::string& name )
+    : m_name( name )
+    {
+    }
+
+    std::string visit( libstdhl::Log::Data& item ) override
+    {
+        std::string msg = m_name + ": ";
+
+        msg += item.level().accept( *this ) + ": ";
+
+        u1 first = true;
+
+        for( auto i : item.items() )
+        {
+            if( i->id() == libstdhl::Log::Item::ID::LOCATION )
+            {
+                continue;
+            }
+
+            msg += ( first ? "" : ", " ) + i->accept( *this );
+
+            first = false;
+        }
+
+        // #ifndef NDEBUG
+        //         // auto tsp = item.timestamp().accept( *this );
+        //         auto src = item.source()->accept( *this );
+        //         auto cat = item.category()->accept( *this );
+        //         msg += " [" + /*tsp +*/ src + ", " + cat + "]";
+        // #endif
+
+        std::string result = msg;
+
+        for( auto i : item.items() )
+        {
+            if( i->id() == libstdhl::Log::Item::ID::LOCATION )
+            {
+                result += "\n" + i->accept( *this );
+
+                const auto& location
+                    = static_cast< const libstdhl::Log::LocationItem& >( *i );
+
+                addDiagnostic( item.level(), location, msg );
+            }
+        }
+
+        return result;
+    }
+
+    const std::vector< Diagnostic >& diagnostics( void ) const
+    {
+        return m_diagnostics;
+    }
+
+  private:
+    void addDiagnostic( const libstdhl::Log::Level& level,
+        const libstdhl::Log::LocationItem& location, const std::string& msg )
+    {
+
+        Position start( location.range().begin().line() - 1,
+            location.range().begin().column() - 1 );
+        Position end( location.range().end().line() - 1,
+            location.range().end().column() );
+        Range range( start, end );
+
+        Diagnostic diagnostic( range, msg );
+
+        switch( level.id() )
+        {
+            case libstdhl::Log::Level::ID::ERROR:
+            {
+                diagnostic.setSeverity( DiagnosticSeverity::Error );
+                break;
+            }
+            case libstdhl::Log::Level::ID::WARNING:
+            {
+                diagnostic.setSeverity( DiagnosticSeverity::Warning );
+                break;
+            }
+            case libstdhl::Log::Level::ID::INFORMATIONAL:
+            {
+                diagnostic.setSeverity( DiagnosticSeverity::Information );
+                break;
+            }
+            case libstdhl::Log::Level::ID::NOTICE:
+            {
+                diagnostic.setSeverity( DiagnosticSeverity::Hint );
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
+
+        const auto hash = std::hash< std::string >()( msg );
+        if( m_cache.find( hash ) == m_cache.end() )
+        {
+            m_cache.insert( hash );
+            m_diagnostics.emplace_back( diagnostic );
+        }
+    }
+
+  private:
+    std::string m_name;
+    std::unordered_set< std::size_t > m_cache;
+    std::vector< Diagnostic > m_diagnostics;
+};
+
 class LanguageServer final : public ServerInterface
 {
   public:
@@ -64,9 +176,18 @@ class LanguageServer final : public ServerInterface
     InitializeResult initialize( const InitializeParams& params ) override
     {
         m_log.info( __FUNCTION__ );
-        // throw Exception( "init req did not work!", InitializeError( false )
-        // );
-        return InitializeResult( ServerCapabilities() );
+
+        // TextDocumentSyncOptions tdso;
+        // tdso.setChange( TextDocumentSyncKind::Full );
+        // tdso.setOpenClose( true );
+
+        ServerCapabilities sc;
+        sc.setTextDocumentSync( TextDocumentSyncKind::Full );
+        sc.setCodeActionProvider( true );
+
+        InitializeResult res( sc );
+        m_log.debug( res.dump() );
+        return res;
     }
 
     void initialized( void ) noexcept override
@@ -84,8 +205,96 @@ class LanguageServer final : public ServerInterface
         m_log.info( __FUNCTION__ );
     }
 
+    void textDocument_didOpen(
+        const DidOpenTextDocumentParams& params ) noexcept override
+    {
+        m_log.info( __FUNCTION__ );
+
+        const auto& fileuri = params.textDocument().uri();
+        const auto& filestr = params.textDocument().text();
+        const auto& fileext = params.textDocument().languageId();
+        const auto& filerev = params.textDocument().version();
+
+        auto result = m_files.emplace( fileuri.toString(),
+            libstdhl::File::TextDocument{ fileuri, fileext } );
+        result.first->second.setData( filestr );
+
+        textDocument_analyze( result.first->second );
+    }
+
+    void textDocument_didChange(
+        const DidChangeTextDocumentParams& params ) noexcept override
+    {
+        m_log.info( __FUNCTION__ );
+
+        const auto& fileuri = params.textDocument().uri();
+        const auto& filerev = params.textDocument().version();
+
+        m_files.emplace( fileuri.toString(),
+            libstdhl::File::TextDocument{ fileuri, "casm" } );
+        auto result = m_files.find( fileuri.toString() );
+        if( result == m_files.end() )
+        {
+            m_log.error(
+                "unable to find text document '" + fileuri.toString() + "'" );
+            return;
+        }
+
+        result->second.setData( params[ "contentChanges" ][ 0 ][ "text" ] );
+
+        textDocument_analyze( result->second );
+    }
+
+    CodeActionResult textDocument_codeAction(
+        const CodeActionParams& params ) override
+    {
+        m_log.info( __FUNCTION__ );
+
+        CodeActionResult res;
+        m_log.debug( res.dump() );
+        return res;
+    }
+
+  private:
+    void textDocument_analyze( const libstdhl::File::TextDocument& file )
+    {
+        libpass::PassResult pr;
+        pr.setResult< libpass::LoadFilePass >(
+            libstdhl::make< libpass::LoadFilePass::Data >( file ) );
+
+        libpass::PassManager pm;
+        pm.setDefaultResult( pr );
+        pm.add< libcasm_fe::SourceToAstPass >();
+        pm.add< libcasm_fe::AttributionPass >();
+        pm.add< libcasm_fe::SymbolResolverPass >();
+        pm.add< libcasm_fe::TypeInferencePass >();
+        pm.add< libcasm_fe::ConsistencyCheckPass >();
+        pm.setDefaultPass< libcasm_fe::ConsistencyCheckPass >();
+        // pm.setDefaultPass< libcasm_fe::TypeInferencePass >();
+
+        try
+        {
+            pm.run();
+        }
+        catch( const std::exception& e )
+        {
+            m_log.error( "pass manager triggered an exception: '"
+                         + std::string( e.what() )
+                         + "'" );
+        }
+
+        DiagnosticFormatter f( "casmd" );
+        libstdhl::Log::OutputStreamSink c( std::cerr, f );
+        pm.stream().flush( c );
+
+        PublishDiagnosticsParams res( file.path(), f.diagnostics() );
+
+        textDocument_publishDiagnostics( res );
+    }
+
   private:
     Logger& m_log;
+    std::unordered_map< std::string, libstdhl::File::TextDocument > m_files;
 };
 
 static constexpr const char* MODE = "mode";
@@ -102,7 +311,7 @@ int main( int argc, const char* argv[] )
     log.setSource(
         libstdhl::make< libstdhl::Log::Source >( argv[ 0 ], DESCRIPTION ) );
 
-    auto flush = [&]( void ) {
+    auto flush = [&argv, &pm]( void ) {
         libstdhl::Log::ApplicationFormatter f( argv[ 0 ] );
         libstdhl::Log::OutputStreamSink c( std::cerr, f );
         pm.stream().flush( c );
@@ -204,7 +413,8 @@ int main( int argc, const char* argv[] )
 
     //     if( pi.argChar() or pi.argString() )
     //     {
-    //         options.add( pi.argChar(), pi.argString(), libstdhl::Args::NONE,
+    //         options.add( pi.argChar(), pi.argString(),
+    //         libstdhl::Args::NONE,
     //             pi.description(), pi.argAction() );
     //     }
     // }
@@ -266,44 +476,42 @@ int main( int argc, const char* argv[] )
 
                     while( true )
                     {
-                        try
+                        // try
+                        // {
+                        std::string in;
+                        const auto client = iface.receive( in );
+
+                        if( in.size() == 0 )
                         {
-                            std::string in;
-                            const auto client = iface.receive( in );
+                            continue;
+                        }
 
-                            if( in.size() == 0 )
-                            {
-                                continue;
-                            }
+                        log.debug( prefix + in + "\n" );
+                        flush();
 
-                            log.debug( prefix + in + "\n" );
-                            flush();
+                        const auto request
+                            = libstdhl::Network::LSP::Packet( in );
+                        log.info(
+                            prefix + "REQ: " + request.dump( true ) + "\n" );
+                        flush();
 
-                            const auto request
-                                = libstdhl::Network::LSP::Packet( in );
-                            log.info( prefix + "REQ: " + request.dump( true )
+                        request.process( server );
+
+                        server.flush( [&]( const Message& response ) {
+                            log.info( prefix + "ACK: " + response.dump( true )
                                       + "\n" );
                             flush();
-
-                            request.process( server );
-
-                            server.flush( [&]( const Message& response ) {
-                                log.info(
-                                    prefix + "ACK: " + response.dump( true )
-                                    + "\n" );
-                                flush();
-                                const auto packet
-                                    = libstdhl::Network::LSP::Packet(
-                                        response );
-                                iface.send( packet, client );
-                            } );
-                        }
-                        catch( const std::exception& e )
-                        {
-                            log.error( e.what() );
-                            flush();
-                            usleep( 1000 );
-                        }
+                            const auto packet
+                                = libstdhl::Network::LSP::Packet( response );
+                            iface.send( packet, client );
+                        } );
+                        // }
+                        // catch( const std::exception& e )
+                        // {
+                        //     log.error( e.what() );
+                        //     flush();
+                        //     usleep( 1000 );
+                        // }
                     }
 
                     iface.disconnect();
@@ -316,11 +524,24 @@ int main( int argc, const char* argv[] )
                     {
                         try
                         {
-                            std::string in;
+                            std::string in = "";
 
-                            while( in.size() == 0 or not std::cin.eof() )
+                            if( std::cin.eof() )
                             {
-                                std::cin >> in;
+                                break;
+                            }
+
+                            while( not std::cin.eof() )
+                            {
+                                std::string tmp;
+                                std::cin >> tmp;
+
+                                in += tmp;
+
+                                if( String::endsWith( tmp, "}\r\n" ) )
+                                {
+                                    break;
+                                }
                             }
 
                             log.debug( prefix + in + "\n" );
@@ -363,6 +584,7 @@ int main( int argc, const char* argv[] )
                     return -1;
                 }
             }
+            break;
         }
         default:
         {
@@ -371,32 +593,6 @@ int main( int argc, const char* argv[] )
             return -1;
         }
     }
-
-    // register all wanted passes
-    // and configure their setup hooks if desired
-
-    // pm.add< libpass::LoadFilePass >(
-    //     [&files_input]( libpass::LoadFilePass& pass ) {
-    //         pass.setFilename( files_input.front() );
-
-    //     } );
-
-    // pm.add< libcasm_fe::SourceToAstPass >();
-    // pm.add< libcasm_fe::TypeInferencePass >();
-
-    // int result = 0;
-
-    // try
-    // {
-    //     pm.run( flush );
-    // }
-    // catch( std::exception& e )
-    // {
-    //     log.error( "pass manager triggered an exception: '"
-    //                + std::string( e.what() )
-    //                + "'" );
-    //     result = -1;
-    // }
 
     flush();
     return 0;
