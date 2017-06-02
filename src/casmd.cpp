@@ -148,18 +148,12 @@ class DiagnosticFormatter : public libstdhl::Log::StringFormatter
                 break;
             }
         }
-
-        const auto hash = std::hash< std::string >()( msg );
-        if( m_cache.find( hash ) == m_cache.end() )
-        {
-            m_cache.insert( hash );
-            m_diagnostics.emplace_back( diagnostic );
-        }
+        
+        m_diagnostics.emplace_back( diagnostic );
     }
 
   private:
     std::string m_name;
-    std::unordered_set< std::size_t > m_cache;
     std::vector< Diagnostic > m_diagnostics;
 };
 
