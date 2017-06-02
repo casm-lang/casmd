@@ -116,7 +116,7 @@ class DiagnosticFormatter : public libstdhl::Log::StringFormatter
         Position start( location.range().begin().line() - 1,
             location.range().begin().column() - 1 );
         Position end( location.range().end().line() - 1,
-            location.range().end().column() );
+            location.range().end().column() - 1 );
         Range range( start, end );
 
         Diagnostic diagnostic( range, msg );
