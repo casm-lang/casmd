@@ -148,7 +148,7 @@ class DiagnosticFormatter : public libstdhl::Log::StringFormatter
                 break;
             }
         }
-        
+
         m_diagnostics.emplace_back( diagnostic );
     }
 
@@ -178,6 +178,10 @@ class LanguageServer final : public ServerInterface
         ServerCapabilities sc;
         sc.setTextDocumentSync( TextDocumentSyncKind::Full );
         sc.setCodeActionProvider( true );
+
+        CodeLensOptions clo;
+        sc.setCodeLensProvider( clo );
+        sc.setHoverProvider( true );
 
         InitializeResult res( sc );
         m_log.debug( res.dump() );
@@ -237,6 +241,18 @@ class LanguageServer final : public ServerInterface
         result->second.setData( params[ "contentChanges" ][ 0 ][ "text" ] );
 
         textDocument_analyze( result->second );
+    }
+
+    HoverResult textDocument_hover( const HoverParams& params ) override
+    {
+        m_log.info( __FUNCTION__ );
+
+        const auto& fileuri = params.textDocument().uri();
+        const auto& filepos = params.position();
+
+        // MarkedString( "hi there!" )
+        HoverResult res;
+        return res;
     }
 
     CodeActionResult textDocument_codeAction(
