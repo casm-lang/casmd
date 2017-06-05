@@ -215,9 +215,17 @@ class LanguageServer final : public ServerInterface
 
         auto result = m_files.emplace( fileuri.toString(),
             libstdhl::File::TextDocument{ fileuri, fileext } );
+
+        if( not result.second )
+        {
+            m_log.error(
+                "text document '" + fileuri.toString() + "' already opened!" );
+            return;
+        }
+
         result.first->second.setData( filestr );
 
-        textDocument_analyze( result.first->second );
+        // textDocument_analyze( result.first->second );
     }
 
     void textDocument_didChange(
@@ -228,8 +236,6 @@ class LanguageServer final : public ServerInterface
         const auto& fileuri = params.textDocument().uri();
         const auto& filerev = params.textDocument().version();
 
-        m_files.emplace( fileuri.toString(),
-            libstdhl::File::TextDocument{ fileuri, "casm" } );
         auto result = m_files.find( fileuri.toString() );
         if( result == m_files.end() )
         {
@@ -240,7 +246,7 @@ class LanguageServer final : public ServerInterface
 
         result->second.setData( params[ "contentChanges" ][ 0 ][ "text" ] );
 
-        textDocument_analyze( result->second );
+        // textDocument_analyze( result->second );
     }
 
     HoverResult textDocument_hover( const HoverParams& params ) override
@@ -259,15 +265,38 @@ class LanguageServer final : public ServerInterface
         const CodeActionParams& params ) override
     {
         m_log.info( __FUNCTION__ );
-
         CodeActionResult res;
-        m_log.debug( res.dump() );
+
+        return res;
+    }
+
+    CodeLensResult textDocument_codeLens(
+        const CodeLensParams& params ) override
+    {
+        m_log.info( __FUNCTION__ );
+        CodeLensResult res;
+
+        const auto& fileuri = params.textDocument().uri();
+        textDocument_analyze( fileuri );
+
         return res;
     }
 
   private:
-    void textDocument_analyze( const libstdhl::File::TextDocument& file )
+    void textDocument_analyze( const DocumentUri& fileuri )
     {
+        auto result = m_files.find( fileuri.toString() );
+        if( result == m_files.end() )
+        {
+            m_log.error(
+                "unable to find text document '" + fileuri.toString() + "'" );
+            return;
+        }
+
+        auto& file = result->second;
+
+        m_log.info( file.data().str() );
+
         libpass::PassResult pr;
         pr.setResult< libpass::LoadFilePass >(
             libstdhl::make< libpass::LoadFilePass::Data >( file ) );
@@ -280,7 +309,6 @@ class LanguageServer final : public ServerInterface
         pm.add< libcasm_fe::TypeInferencePass >();
         pm.add< libcasm_fe::ConsistencyCheckPass >();
         pm.setDefaultPass< libcasm_fe::ConsistencyCheckPass >();
-        // pm.setDefaultPass< libcasm_fe::TypeInferencePass >();
 
         try
         {
@@ -293,11 +321,11 @@ class LanguageServer final : public ServerInterface
                          + "'" );
         }
 
-        DiagnosticFormatter f( "casmd" );
-        libstdhl::Log::OutputStreamSink c( std::cerr, f );
-        pm.stream().flush( c );
+        DiagnosticFormatter formatter( "casmd" );
+        libstdhl::Log::OutputStreamSink sink( std::cerr, formatter );
+        pm.stream().flush( sink );
 
-        PublishDiagnosticsParams res( file.path(), f.diagnostics() );
+        PublishDiagnosticsParams res( file.path(), formatter.diagnostics() );
 
         textDocument_publishDiagnostics( res );
     }
