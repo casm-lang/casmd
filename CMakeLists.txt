@@ -128,6 +128,7 @@ target_link_libraries( ${TARGET}-check
   casm-ir
   pass
   stdhl
+  pthread
 )
 
 
@@ -137,10 +138,10 @@ add_library( ${TARGET}-benchmark OBJECT
   
 add_executable( ${TARGET}-run
   $<TARGET_OBJECTS:${TARGET}-benchmark>
- $<TARGET_OBJECTS:pass-benchmark>
- $<TARGET_OBJECTS:stdhl-benchmark>
- $<TARGET_OBJECTS:casm-ir-benchmark>
- $<TARGET_OBJECTS:casm-fe-benchmark>
+  $<TARGET_OBJECTS:pass-benchmark>
+  $<TARGET_OBJECTS:stdhl-benchmark>
+  $<TARGET_OBJECTS:casm-ir-benchmark>
+  $<TARGET_OBJECTS:casm-fe-benchmark>
   $<TARGET_OBJECTS:casm-tc-benchmark>
 )
 
