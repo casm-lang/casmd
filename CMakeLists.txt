@@ -104,6 +104,7 @@ target_link_libraries( ${TARGET}
   casm-ir
   pass
   stdhl
+  pthread
 )
 
 

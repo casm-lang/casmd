@@ -179,6 +179,11 @@ class LanguageServer final : public ServerInterface
         sc.setTextDocumentSync( TextDocumentSyncKind::Full );
         sc.setCodeActionProvider( true );
 
+        ExecuteCommandOptions eco;
+        eco.addCommand( "version" );
+        eco.addCommand( "run" );
+        sc.setExecuteCommandProvider( eco );
+
         CodeLensOptions clo;
         sc.setCodeLensProvider( clo );
         sc.setHoverProvider( true );
@@ -201,6 +206,32 @@ class LanguageServer final : public ServerInterface
     void exit( void ) noexcept override
     {
         m_log.info( __FUNCTION__ );
+    }
+
+    ExecuteCommandResult workspace_executeCommand(
+        const ExecuteCommandParams& params ) override
+    {
+        m_log.info( __FUNCTION__ );
+
+        const auto& command = params.command();
+        const auto cmd = libstdhl::String::value( command );
+        switch( cmd )
+        {
+            case String::value( "version" ):
+            {
+                return "\n" + DESCRIPTION + "\n" + m_log.source()->name()
+                       + ": version: " + VERSION + " [ " + __DATE__ + " "
+                       + __TIME__ + " ]\n" + "\n" + LICENSE;
+            }
+            case String::value( "run" ):
+            {
+                const DocumentUri fileuri
+                    = DocumentUri::fromString( "inmemory://model.casm" );
+                return textDocument_execute( fileuri );
+            }
+        }
+
+        return ExecuteCommandResult();
     }
 
     void textDocument_didOpen(
@@ -295,7 +326,9 @@ class LanguageServer final : public ServerInterface
 
         auto& file = result->second;
 
-        m_log.info( file.data().str() );
+        m_log.info( std::to_string( (u64)&file ) + " ... " + fileuri.toString()
+                    + "\n\n"
+                    + file.data() );
 
         libpass::PassResult pr;
         pr.setResult< libpass::LoadFilePass >(
@@ -308,6 +341,8 @@ class LanguageServer final : public ServerInterface
         pm.add< libcasm_fe::SymbolResolverPass >();
         pm.add< libcasm_fe::TypeInferencePass >();
         pm.add< libcasm_fe::ConsistencyCheckPass >();
+        pm.add< libcasm_fe::NumericExecutionPass >();
+
         pm.setDefaultPass< libcasm_fe::ConsistencyCheckPass >();
 
         try
@@ -328,6 +363,66 @@ class LanguageServer final : public ServerInterface
         PublishDiagnosticsParams res( file.path(), formatter.diagnostics() );
 
         textDocument_publishDiagnostics( res );
+    }
+
+    std::string textDocument_execute( const DocumentUri& fileuri )
+    {
+        auto result = m_files.find( fileuri.toString() );
+        if( result == m_files.end() )
+        {
+            const auto msg
+                = "unable to find text document '" + fileuri.toString() + "'";
+            m_log.error( msg );
+            throw std::invalid_argument( msg );
+        }
+
+        auto& file = result->second;
+
+        m_log.info( std::to_string( (u64)&file ) + " ... " + fileuri.toString()
+                    + "\n\n"
+                    + file.data() );
+
+        libpass::PassResult pr;
+        pr.setResult< libpass::LoadFilePass >(
+            libstdhl::make< libpass::LoadFilePass::Data >( file ) );
+
+        libpass::PassManager pm;
+        pm.setDefaultResult( pr );
+        pm.add< libcasm_fe::SourceToAstPass >();
+        pm.add< libcasm_fe::AttributionPass >();
+        pm.add< libcasm_fe::SymbolResolverPass >();
+        pm.add< libcasm_fe::TypeInferencePass >();
+        pm.add< libcasm_fe::ConsistencyCheckPass >();
+        pm.add< libcasm_fe::NumericExecutionPass >();
+
+        pm.setDefaultPass< libcasm_fe::NumericExecutionPass >();
+
+        std::ostringstream local;
+        auto cout_buff = std::cout.rdbuf();
+        std::cout.rdbuf( local.rdbuf() );
+
+        try
+        {
+            pm.run();
+        }
+        catch( const std::exception& e )
+        {
+            m_log.error( "pass manager triggered an exception: '"
+                         + std::string( e.what() )
+                         + "'" );
+        }
+
+        std::cout.rdbuf( cout_buff );
+
+        DiagnosticFormatter formatter( "casmd" );
+        libstdhl::Log::OutputStreamSink sink( std::cerr, formatter );
+        pm.stream().flush( sink );
+
+        PublishDiagnosticsParams res( file.path(), formatter.diagnostics() );
+
+        textDocument_publishDiagnostics( res );
+
+        return local.str();
     }
 
   private:
@@ -533,7 +628,14 @@ int main( int argc, const char* argv[] )
                             prefix + "REQ: " + request.dump( true ) + "\n" );
                         flush();
 
-                        request.process( server );
+                        try
+                        {
+                            request.process( server );
+                        }
+                        catch( const std::exception& e )
+                        {
+                            log.error( e.what() );
+                        }
 
                         server.flush( [&]( const Message& response ) {
                             log.info( prefix + "ACK: " + response.dump( true )
