@@ -22,19 +22,20 @@
 //  along with casmd. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include "license.h"
-#include "version.h"
+#include "License.h"
+#include "casmd/Version"
 
-#include "libpass.h"
-#include "libstdhl.h"
+#include <libstdhl/file/TextDocument>
+#include <libstdhl/libstdhl>
+#include <libstdhl/network/Lsp>
+#include <libstdhl/network/udp/IPv4>
 
-#include "../stdhl/cpp/file/TextDocument.h"
-#include "../stdhl/cpp/network/Lsp.h"
-#include "../stdhl/cpp/network/udp/IPv4.h"
+#include <libpass/libpass>
 
-#include "libcasm-fe.h"
-#include "libcasm-ir.h"
-#include "libcasm-tc.h"
+#include <libcasm-fe/libcasm-fe>
+#include <libcasm-ir/libcasm-ir>
+// #include <libcasm-rt/libcasm-rt>
+#include "../../../lib/casm-tc/libcasm-tc.h"
 
 /**
     @brief TODO
@@ -220,7 +221,7 @@ class LanguageServer final : public ServerInterface
             case String::value( "version" ):
             {
                 return "\n" + DESCRIPTION + "\n" + m_log.source()->name()
-                       + ": version: " + VERSION + " [ " + __DATE__ + " "
+                       + ": version: " + REVTAG + " [ " + __DATE__ + " "
                        + __TIME__ + " ]\n" + "\n" + LICENSE;
             }
             case String::value( "run" ):
@@ -332,7 +333,7 @@ class LanguageServer final : public ServerInterface
 
         libpass::PassResult pr;
         pr.setResult< libpass::LoadFilePass >(
-            libstdhl::make< libpass::LoadFilePass::Data >( file ) );
+            libstdhl::Memory::make< libpass::LoadFilePass::Data >( file ) );
 
         libpass::PassManager pm;
         pm.setDefaultResult( pr );
@@ -384,7 +385,7 @@ class LanguageServer final : public ServerInterface
 
         libpass::PassResult pr;
         pr.setResult< libpass::LoadFilePass >(
-            libstdhl::make< libpass::LoadFilePass::Data >( file ) );
+            libstdhl::Memory::make< libpass::LoadFilePass::Data >( file ) );
 
         libpass::PassManager pm;
         pm.setDefaultResult( pr );
@@ -441,8 +442,8 @@ int main( int argc, const char* argv[] )
 {
     libpass::PassManager pm;
     libstdhl::Logger log( pm.stream() );
-    log.setSource(
-        libstdhl::make< libstdhl::Log::Source >( argv[ 0 ], DESCRIPTION ) );
+    log.setSource( libstdhl::Memory::make< libstdhl::Log::Source >(
+        argv[ 0 ], DESCRIPTION ) );
 
     auto flush = [&argv, &pm]( void ) {
         libstdhl::Log::ApplicationFormatter f( argv[ 0 ] );
@@ -512,7 +513,7 @@ int main( int argc, const char* argv[] )
 
             log.output( "\n" + DESCRIPTION + "\n" + log.source()->name()
                         + ": version: "
-                        + VERSION
+                        + REVTAG
                         + " [ "
                         + __DATE__
                         + " "
