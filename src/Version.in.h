@@ -33,7 +33,7 @@
    variables are automatically set by CMake
 */
 
-namespace libcasm_ir
+namespace casmd
 {
     constexpr const char* REVTAG = "@GIT_REVTAG@";
     constexpr const char* COMMIT = "@GIT_COMMIT@";

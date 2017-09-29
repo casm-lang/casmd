@@ -25,16 +25,15 @@
 #include "License.h"
 #include "casmd/Version"
 
+#include <libcasm-fe/libcasm-fe>
+#include <libcasm-ir/libcasm-ir>
+#include <libpass/libpass>
 #include <libstdhl/file/TextDocument>
 #include <libstdhl/libstdhl>
 #include <libstdhl/network/Lsp>
 #include <libstdhl/network/udp/IPv4>
-
-#include <libpass/libpass>
-
-#include <libcasm-fe/libcasm-fe>
-#include <libcasm-ir/libcasm-ir>
 // #include <libcasm-rt/libcasm-rt>
+
 #include "../../../lib/casm-tc/libcasm-tc.h"
 
 /**
@@ -221,7 +220,7 @@ class LanguageServer final : public ServerInterface
             case String::value( "version" ):
             {
                 return "\n" + DESCRIPTION + "\n" + m_log.source()->name()
-                       + ": version: " + REVTAG + " [ " + __DATE__ + " "
+                       + ": version: " + casmd::REVTAG + " [ " + __DATE__ + " "
                        + __TIME__ + " ]\n" + "\n" + LICENSE;
             }
             case String::value( "run" ):
@@ -513,7 +512,7 @@ int main( int argc, const char* argv[] )
 
             log.output( "\n" + DESCRIPTION + "\n" + log.source()->name()
                         + ": version: "
-                        + REVTAG
+                        + casmd::REVTAG
                         + " [ "
                         + __DATE__
                         + " "
