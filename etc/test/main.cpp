@@ -22,8 +22,26 @@
 //  along with casmd. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include "gtest/gtest.h"
+#include "main.h"
 
-TEST( casmd, example )
+void casmd_main_dummy( void )
+{
+    const auto source
+        = libstdhl::Memory::make< libstdhl::Log::Source >( "casmd", "CASMD" );
+
+    libstdhl::Log::defaultSource( source );
+}
+
+TEST( casmd_main, empty )
 {
 }
+
+//
+//  Local variables:
+//  mode: c++
+//  indent-tabs-mode: nil
+//  c-basic-offset: 4
+//  tab-width: 4
+//  End:
+//  vim:noexpandtab:sw=4:ts=4:
+//

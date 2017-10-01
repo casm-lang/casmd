@@ -1,25 +1,43 @@
 #
-#   Copyright (c) 2017 CASM Organization
+#   Copyright (c) 2014-2017 Philipp Paulweber
 #   All rights reserved.
 #
 #   Developed by: Philipp Paulweber
 #                 Emmanuel Pescosta
-#                 https://github.com/casm-lang/casmd
+#                 https://github.com/ppaulweber/libstdhl
 #
-#   This file is part of casmd.
+#   This file is part of libstdhl.
 #
-#   casmd is free software: you can redistribute it and/or modify
+#   libstdhl is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
 #   the Free Software Foundation, either version 3 of the License, or
 #   (at your option) any later version.
 #
-#   casmd is distributed in the hope that it will be useful,
+#   libstdhl is distributed in the hope that it will be useful,
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 #   GNU General Public License for more details.
 #
 #   You should have received a copy of the GNU General Public License
-#   along with casmd. If not, see <http://www.gnu.org/licenses/>.
+#   along with libstdhl. If not, see <http://www.gnu.org/licenses/>.
+#
+#   Additional permission under GNU GPL version 3 section 7
+#
+#   libstdhl is distributed under the terms of the GNU General Public License
+#   with the following clarification and special exception: Linking libstdhl
+#   statically or dynamically with other modules is making a combined work
+#   based on libstdhl. Thus, the terms and conditions of the GNU General
+#   Public License cover the whole combination. As a special exception,
+#   the copyright holders of libstdhl give you permission to link libstdhl
+#   with independent modules to produce an executable, regardless of the
+#   license terms of these independent modules, and to copy and distribute
+#   the resulting executable under terms of your choice, provided that you
+#   also meet, for each linked independent module, the terms and conditions
+#   of the license of that module. An independent module is a module which
+#   is not derived from or based on libstdhl. If you modify libstdhl, you
+#   may extend this exception to your version of the library, but you are
+#   not obliged to do so. If you do not wish to do so, delete this exception
+#   statement from your version.
 #
 
 #
@@ -402,7 +420,36 @@ function( package_git_submodule PREFIX VERSION MODE TMP ) # ${ARGN} search paths
 	message( FATAL_ERROR "package '${PREFIX}' is not a 'git' repository" )
       endif()
 
-      message( "-- ${PREFIX} Found [git] @ '${${PREFIX}_REPO_DIR}'" )
+      execute_process(
+	COMMAND             git describe --always --tags --dirty
+	WORKING_DIRECTORY   ${${PREFIX}_REPO_DIR}
+	OUTPUT_VARIABLE     PREFIX_GIT_REVTAG
+	OUTPUT_STRIP_TRAILING_WHITESPACE
+	)
+
+      message( "-- Found ${PREFIX} [${PREFIX_GIT_REVTAG}] @ '${${PREFIX}_REPO_DIR}'" )
+
+      if( EXISTS ${${PREFIX}_REPO_DIR}/.cmake )
+	set( CMAKE_MODULE_PATH
+	  ${CMAKE_MODULE_PATH}
+	  ${${PREFIX}_REPO_DIR}/.cmake
+	  )
+      endif()
+
+      if( EXISTS ${${PREFIX}_ROOT_DIR}/share/cmake/Module/${PREFIX} )
+	set( CMAKE_MODULE_PATH
+	  ${CMAKE_MODULE_PATH}
+	  ${${PREFIX}_ROOT_DIR}/share/cmake/Module/${PREFIX}
+	  )
+      endif()
+
+      if( TARGET ${PREFIX} )
+	set( CMAKE_MODULE_PATH
+	  ${CMAKE_MODULE_PATH}
+	  PARENT_SCOPE
+	  )
+	return()
+      endif()
 
       Externalproject_Add( ${PREFIX}
 	SOURCE_DIR      ${${PREFIX}_REPO_DIR}
@@ -422,21 +469,6 @@ function( package_git_submodule PREFIX VERSION MODE TMP ) # ${ARGN} search paths
       # UPDATE_COMMAND  ""
       # BUILD_ALWAYS    1
       # STAMP_DIR       ${${PREFIX}_STAM_DIR}
-
-
-      if( EXISTS ${${PREFIX}_REPO_DIR}/.cmake )
-	set( CMAKE_MODULE_PATH
-	  ${CMAKE_MODULE_PATH}
-	  ${${PREFIX}_REPO_DIR}/.cmake
-	  )
-      endif()
-
-      if( EXISTS ${${PREFIX}_ROOT_DIR}/share/cmake/Module/${PREFIX} )
-	set( CMAKE_MODULE_PATH
-	  ${CMAKE_MODULE_PATH}
-	  ${${PREFIX}_ROOT_DIR}/share/cmake/Module/${PREFIX}
-	  )
-      endif()
 
       set( CMAKE_PREFIX_PATH ${${PREFIX}_ROOT_DIR} )
 
@@ -496,7 +528,7 @@ function( package_git_submodule PREFIX VERSION MODE TMP ) # ${ARGN} search paths
       # message( "            bin: ${MAKE_DIFF_HASH}" )
 
       if( NOT "${MAKE_DIFF_HASH}" STREQUAL "${REPO_DIFF_HASH}" )
-	message( "            rebuild required!" )
+	message( "         rebuild required!" )
 
 	ExternalProject_Add_Step(${PREFIX} force-build
       	  COMMAND             ${CMAKE_COMMAND} -E remove ${MAKE_DIFF_PATH}
@@ -524,9 +556,9 @@ function( package_git_submodule PREFIX VERSION MODE TMP ) # ${ARGN} search paths
 	#   )
       endif()
 
-      # message( "            ${PREFIX_INCLUDE} = ${${PREFIX_INCLUDE}}" )
-      # message( "            ${PREFIX_LIBRARY}     = ${${PREFIX_LIBRARY}}" )
-      # message( "            ${PREFIX_NAME}_FOUND       = ${${PREFIX_NAME}_FOUND}" )
+      # message( "         ${PREFIX_INCLUDE} = ${${PREFIX_INCLUDE}}" )
+      # message( "         ${PREFIX_LIBRARY}     = ${${PREFIX_LIBRARY}}" )
+      # message( "         ${PREFIX_NAME}_FOUND       = ${${PREFIX_NAME}_FOUND}" )
 
       set( CMAKE_MODULE_PATH
 	${CMAKE_MODULE_PATH}
@@ -543,12 +575,12 @@ function( package_git_submodule PREFIX VERSION MODE TMP ) # ${ARGN} search paths
   endforeach()
 
   if( ${${PREFIX_NAME}_FOUND} )
-    message( "-- ${PREFIX} Found [installed]" )
+    message( "-- Found ${PREFIX} [installed]" )
     add_custom_target( ${PREFIX}
       COMMENT "Package ${PREFIX}"
       )
   else()
-    message( FATAL_ERROR "-- ${PREFIX} NOT Found!" )
+    message( FATAL_ERROR "-- *NOT* Found ${PREFIX}" )
   endif()
 
   set( ${PREFIX_NAME}_FOUND

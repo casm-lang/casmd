@@ -52,16 +52,14 @@ include( GenerateExportHeader )
 include( CPack )
 
 add_subdirectory( src )
-#add_subdirectory( etc
-#  EXCLUDE_FROM_ALL
-#  )
+add_subdirectory( etc
+  EXCLUDE_FROM_ALL
+  )
 
-add_custom_target( sync
+add_custom_target( ${PROJECT}-sync
   COMMAND
     make sync > ${PROJECT_BINARY_DIR}/CMakeSync 2>&1
   DEPENDS
-    libgtest
-    libhayai
     libstdhl
     libpass
     libcasm-ir
@@ -72,7 +70,26 @@ add_custom_target( sync
   )
 
 add_dependencies( ${PROJECT}-cpp
-  sync
+  ${PROJECT}-sync
+  )
+
+add_custom_target( ${PROJECT}-sync-other
+  COMMAND
+    make sync > ${PROJECT_BINARY_DIR}/CMakeSync 2>&1
+  DEPENDS
+    libgtest
+    libhayai
+    libcasm-tc
+  WORKING_DIRECTORY
+    ${PROJECT_SOURCE_DIR}
+  )
+
+add_dependencies( ${PROJECT}-test
+  ${PROJECT}-sync-other
+  )
+
+add_dependencies( ${PROJECT}-benchmark
+  ${PROJECT}-sync-other
   )
 
 
@@ -85,7 +102,7 @@ add_executable( ${PROJECT}
   )
 
 if( ${LIBCASM_FE_FOUND} )
-  target_link_libraries( ${PROJECT}
+  target_link_libraries( ${PROJECT} PUBLIC "-static"
     ${LIBCASM_FE_LIBRARY}
     ${LIBCASM_RT_LIBRARY}
     ${LIBCASM_IR_LIBRARY}
@@ -95,10 +112,60 @@ if( ${LIBCASM_FE_FOUND} )
     )
 endif()
 
-
 set( ${PROJECT}_VERSION ${GIT_REVTAG} )
-set_property( TARGET ${PROJECT} PROPERTY VERSION   ${PROJECT}_VERSION )
-set_property( TARGET ${PROJECT} PROPERTY PREFIX "" )
+set_property( TARGET ${PROJECT} PROPERTY VERSION ${${PROJECT}_VERSION} )
+set_property( TARGET ${PROJECT} PROPERTY PREFIX  "" )
+
+
+#
+# test
+#
+
+add_executable( ${PROJECT}-check
+  EXCLUDE_FROM_ALL
+  $<TARGET_OBJECTS:${PROJECT}-test>
+  )
+
+if( ${LIBCASM_TC_FOUND} )
+  target_link_libraries( ${PROJECT}-check
+    -Wl,--whole-archive
+    ${LIBCASM_TC_TEST}
+    -Wl,--no-whole-archive
+    ${LIBPASS_LIBRARY}
+    ${LIBSTDHL_LIBRARY}
+    ${LIBGTEST_LIBRARY}
+    ${LIBGTEST_MAIN}
+    Threads::Threads
+    )
+endif()
+
+
+#
+# benchmark
+#
+
+add_executable( ${PROJECT}-run
+  EXCLUDE_FROM_ALL
+  $<TARGET_OBJECTS:${PROJECT}-benchmark>
+  )
+
+if( ${LIBCASM_TC_FOUND} )
+  target_link_libraries( ${PROJECT}-run
+    -Wl,--whole-archive
+    ${LIBCASM_TC_BENCHMARK}
+    -Wl,--no-whole-archive
+    ${LIBPASS_LIBRARY}
+    ${LIBSTDHL_LIBRARY}
+    ${LIBHAYAI_LIBRARY}
+    ${LIBGTEST_LIBRARY}
+    Threads::Threads
+    )
+endif()
+
+
+#
+# install
+#
 
 install(
   TARGETS  ${PROJECT}
@@ -111,51 +178,16 @@ install(
 
 
 # #
-# # test
-# # 
-# 
-# 
-# add_executable( ${PROJECT}-check
-#   EXCLUDE_FROM_ALL
-#   $<TARGET_OBJECTS:${PROJECT}-test>
-#   )
-# 
-# if( ${LIBGTEST_FOUND} )
-#   target_link_libraries( ${PROJECT}-check
-#     ${PROJECT}
-#     ${LIBGTEST_LIBRARY}
-#     ${LIBGTEST_MAIN}
-#     Threads::Threads
-#     )
-# endif()
-# 
-# #
-# # benchmark
-# #
-# 
-# add_executable( ${PROJECT}-run
-#   EXCLUDE_FROM_ALL
-#   $<TARGET_OBJECTS:${PROJECT}-benchmark>
-#   )
-# 
-# if( ${LIBHAYAI_FOUND} )
-#   target_link_libraries( ${PROJECT}-run
-#     ${PROJECT}
-#     ${LIBHAYAI_LIBRARY}
-#     )
-# endif()
-# 
-# 
-# #
 # # cmake
 # #
-# 
+
 # install(
 #   FILES
 #     .cmake/Find${PROJECT}.cmake
 #   DESTINATION
 #     "share/cmake/Module/${PROJECT}"
 #   )
+
 
 #
 # build features and checks
@@ -164,4 +196,8 @@ install(
 include( LibCompile )
 compile_flags( CXX )
 compile_check()
-feature_summary( WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES )
+
+feature_summary( WHAT
+  PACKAGES_NOT_FOUND
+  DISABLED_FEATURES
+  )

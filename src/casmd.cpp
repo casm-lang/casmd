@@ -27,14 +27,13 @@
 
 #include <libcasm-fe/libcasm-fe>
 #include <libcasm-ir/libcasm-ir>
+#include <libcasm-tc/Profile>
 #include <libpass/libpass>
 #include <libstdhl/file/TextDocument>
 #include <libstdhl/libstdhl>
 #include <libstdhl/network/Lsp>
 #include <libstdhl/network/udp/IPv4>
 // #include <libcasm-rt/libcasm-rt>
-
-#include "../../../lib/casm-tc/libcasm-tc.h"
 
 /**
     @brief TODO
