@@ -305,6 +305,7 @@ class LanguageServer final : public ServerInterface
     {
         m_log.info( __FUNCTION__ );
         CodeLensResult res;
+        res.addCodeLens( Range( Position( 1, 1 ), Position( 1, 1 ) ) );
 
         const auto& fileuri = params.textDocument().uri();
         textDocument_analyze( fileuri );
@@ -337,10 +338,11 @@ class LanguageServer final : public ServerInterface
         pm.setDefaultResult( pr );
         pm.add< libcasm_fe::SourceToAstPass >();
         pm.add< libcasm_fe::AttributionPass >();
+        pm.add< libcasm_fe::SymbolRegistrationPass >();
         pm.add< libcasm_fe::SymbolResolverPass >();
+        pm.add< libcasm_fe::TypeCheckPass >();
         pm.add< libcasm_fe::TypeInferencePass >();
         pm.add< libcasm_fe::ConsistencyCheckPass >();
-        pm.add< libcasm_fe::NumericExecutionPass >();
 
         pm.setDefaultPass< libcasm_fe::ConsistencyCheckPass >();
 
@@ -389,7 +391,9 @@ class LanguageServer final : public ServerInterface
         pm.setDefaultResult( pr );
         pm.add< libcasm_fe::SourceToAstPass >();
         pm.add< libcasm_fe::AttributionPass >();
+        pm.add< libcasm_fe::SymbolRegistrationPass >();
         pm.add< libcasm_fe::SymbolResolverPass >();
+        pm.add< libcasm_fe::TypeCheckPass >();
         pm.add< libcasm_fe::TypeInferencePass >();
         pm.add< libcasm_fe::ConsistencyCheckPass >();
         pm.add< libcasm_fe::NumericExecutionPass >();
