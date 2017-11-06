@@ -396,6 +396,7 @@ class LanguageServer final : public ServerInterface
         pm.add< libcasm_fe::TypeCheckPass >();
         pm.add< libcasm_fe::TypeInferencePass >();
         pm.add< libcasm_fe::ConsistencyCheckPass >();
+        pm.add< libcasm_fe::FrameSizeDeterminationPass >();
         pm.add< libcasm_fe::NumericExecutionPass >();
 
         pm.setDefaultPass< libcasm_fe::NumericExecutionPass >();
