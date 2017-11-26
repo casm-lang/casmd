@@ -41,9 +41,9 @@
     TODO
 */
 
-static const std::string DESCRIPTION
-    = "Corinthian Abstract State Machine (CASM) Language "
-      "Server/Service Daemon\n";
+static const std::string DESCRIPTION =
+    "Corinthian Abstract State Machine (CASM) Language "
+    "Server/Service Daemon\n";
 
 using namespace libstdhl;
 using namespace Network;
@@ -92,8 +92,7 @@ class DiagnosticFormatter : public libstdhl::Log::StringFormatter
             {
                 result += "\n" + i->accept( *this );
 
-                const auto& location
-                    = static_cast< const libstdhl::Log::LocationItem& >( *i );
+                const auto& location = static_cast< const libstdhl::Log::LocationItem& >( *i );
 
                 addDiagnostic( item.level(), location, msg );
             }
@@ -108,14 +107,14 @@ class DiagnosticFormatter : public libstdhl::Log::StringFormatter
     }
 
   private:
-    void addDiagnostic( const libstdhl::Log::Level& level,
-        const libstdhl::Log::LocationItem& location, const std::string& msg )
+    void addDiagnostic(
+        const libstdhl::Log::Level& level,
+        const libstdhl::Log::LocationItem& location,
+        const std::string& msg )
     {
-
-        Position start( location.range().begin().line() - 1,
-            location.range().begin().column() - 1 );
-        Position end( location.range().end().line() - 1,
-            location.range().end().column() - 1 );
+        Position start(
+            location.range().begin().line() - 1, location.range().begin().column() - 1 );
+        Position end( location.range().end().line() - 1, location.range().end().column() - 1 );
         Range range( start, end );
 
         Diagnostic diagnostic( range, msg );
@@ -207,8 +206,7 @@ class LanguageServer final : public ServerInterface
         m_log.info( __FUNCTION__ );
     }
 
-    ExecuteCommandResult workspace_executeCommand(
-        const ExecuteCommandParams& params ) override
+    ExecuteCommandResult workspace_executeCommand( const ExecuteCommandParams& params ) override
     {
         m_log.info( __FUNCTION__ );
 
@@ -218,14 +216,13 @@ class LanguageServer final : public ServerInterface
         {
             case String::value( "version" ):
             {
-                return "\n" + DESCRIPTION + "\n" + m_log.source()->name()
-                       + ": version: " + casmd::REVTAG + " [ " + __DATE__ + " "
-                       + __TIME__ + " ]\n" + "\n" + LICENSE;
+                return "\n" + DESCRIPTION + "\n" + m_log.source()->name() +
+                       ": version: " + casmd::REVTAG + " [ " + __DATE__ + " " + __TIME__ + " ]\n" +
+                       "\n" + LICENSE;
             }
             case String::value( "run" ):
             {
-                const DocumentUri fileuri
-                    = DocumentUri::fromString( "inmemory://model.casm" );
+                const DocumentUri fileuri = DocumentUri::fromString( "inmemory://model.casm" );
                 return textDocument_execute( fileuri );
             }
         }
@@ -233,8 +230,7 @@ class LanguageServer final : public ServerInterface
         return ExecuteCommandResult();
     }
 
-    void textDocument_didOpen(
-        const DidOpenTextDocumentParams& params ) noexcept override
+    void textDocument_didOpen( const DidOpenTextDocumentParams& params ) noexcept override
     {
         m_log.info( __FUNCTION__ );
 
@@ -243,13 +239,12 @@ class LanguageServer final : public ServerInterface
         const auto& fileext = params.textDocument().languageId();
         const auto& filerev = params.textDocument().version();
 
-        auto result = m_files.emplace( fileuri.toString(),
-            libstdhl::File::TextDocument{ fileuri, fileext } );
+        auto result =
+            m_files.emplace( fileuri.toString(), libstdhl::File::TextDocument{ fileuri, fileext } );
 
         if( not result.second )
         {
-            m_log.error(
-                "text document '" + fileuri.toString() + "' already opened!" );
+            m_log.error( "text document '" + fileuri.toString() + "' already opened!" );
             return;
         }
 
@@ -258,8 +253,7 @@ class LanguageServer final : public ServerInterface
         // textDocument_analyze( result.first->second );
     }
 
-    void textDocument_didChange(
-        const DidChangeTextDocumentParams& params ) noexcept override
+    void textDocument_didChange( const DidChangeTextDocumentParams& params ) noexcept override
     {
         m_log.info( __FUNCTION__ );
 
@@ -269,8 +263,7 @@ class LanguageServer final : public ServerInterface
         auto result = m_files.find( fileuri.toString() );
         if( result == m_files.end() )
         {
-            m_log.error(
-                "unable to find text document '" + fileuri.toString() + "'" );
+            m_log.error( "unable to find text document '" + fileuri.toString() + "'" );
             return;
         }
 
@@ -291,8 +284,7 @@ class LanguageServer final : public ServerInterface
         return res;
     }
 
-    CodeActionResult textDocument_codeAction(
-        const CodeActionParams& params ) override
+    CodeActionResult textDocument_codeAction( const CodeActionParams& params ) override
     {
         m_log.info( __FUNCTION__ );
         CodeActionResult res;
@@ -300,8 +292,7 @@ class LanguageServer final : public ServerInterface
         return res;
     }
 
-    CodeLensResult textDocument_codeLens(
-        const CodeLensParams& params ) override
+    CodeLensResult textDocument_codeLens( const CodeLensParams& params ) override
     {
         m_log.info( __FUNCTION__ );
         CodeLensResult res;
@@ -319,16 +310,14 @@ class LanguageServer final : public ServerInterface
         auto result = m_files.find( fileuri.toString() );
         if( result == m_files.end() )
         {
-            m_log.error(
-                "unable to find text document '" + fileuri.toString() + "'" );
+            m_log.error( "unable to find text document '" + fileuri.toString() + "'" );
             return;
         }
 
         auto& file = result->second;
 
-        m_log.info( std::to_string( (u64)&file ) + " ... " + fileuri.toString()
-                    + "\n\n"
-                    + file.data() );
+        m_log.info(
+            std::to_string( (u64)&file ) + " ... " + fileuri.toString() + "\n\n" + file.data() );
 
         libpass::PassResult pr;
         pr.setResult< libpass::LoadFilePass >(
@@ -352,9 +341,7 @@ class LanguageServer final : public ServerInterface
         }
         catch( const std::exception& e )
         {
-            m_log.error( "pass manager triggered an exception: '"
-                         + std::string( e.what() )
-                         + "'" );
+            m_log.error( "pass manager triggered an exception: '" + std::string( e.what() ) + "'" );
         }
 
         DiagnosticFormatter formatter( "casmd" );
@@ -371,17 +358,15 @@ class LanguageServer final : public ServerInterface
         auto result = m_files.find( fileuri.toString() );
         if( result == m_files.end() )
         {
-            const auto msg
-                = "unable to find text document '" + fileuri.toString() + "'";
+            const auto msg = "unable to find text document '" + fileuri.toString() + "'";
             m_log.error( msg );
             throw std::invalid_argument( msg );
         }
 
         auto& file = result->second;
 
-        m_log.info( std::to_string( (u64)&file ) + " ... " + fileuri.toString()
-                    + "\n\n"
-                    + file.data() );
+        m_log.info(
+            std::to_string( (u64)&file ) + " ... " + fileuri.toString() + "\n\n" + file.data() );
 
         libpass::PassResult pr;
         pr.setResult< libpass::LoadFilePass >(
@@ -411,9 +396,7 @@ class LanguageServer final : public ServerInterface
         }
         catch( const std::exception& e )
         {
-            m_log.error( "pass manager triggered an exception: '"
-                         + std::string( e.what() )
-                         + "'" );
+            m_log.error( "pass manager triggered an exception: '" + std::string( e.what() ) + "'" );
         }
 
         std::cout.rdbuf( cout_buff );
@@ -445,8 +428,7 @@ int main( int argc, const char* argv[] )
 {
     libpass::PassManager pm;
     libstdhl::Logger log( pm.stream() );
-    log.setSource( libstdhl::Memory::make< libstdhl::Log::Source >(
-        argv[ 0 ], DESCRIPTION ) );
+    log.setSource( libstdhl::Memory::make< libstdhl::Log::Source >( argv[ 0 ], DESCRIPTION ) );
 
     auto flush = [&argv, &pm]( void ) {
         libstdhl::Log::ApplicationFormatter f( argv[ 0 ] );
@@ -456,79 +438,67 @@ int main( int argc, const char* argv[] )
 
     std::unordered_map< std::string, std::vector< std::string > > setting;
 
-    libstdhl::Args options(
-        argc, argv, libstdhl::Args::DEFAULT, [&]( const char* arg ) {
+    libstdhl::Args options( argc, argv, libstdhl::Args::DEFAULT, [&]( const char* arg ) {
 
-            if( strcmp( arg, MODE_LSP ) == 0 )
-            {
-                if( setting[ MODE ].size() > 0 )
-                {
-                    log.error( "already defined mode '"
-                               + setting[ MODE ].front()
-                               + "', unable to use additional provided mode '"
-                               + std::string( arg )
-                               + "'" );
-                    return -1;
-                }
-
-                setting[ MODE ].emplace_back( arg );
-            }
-            else
+        if( strcmp( arg, MODE_LSP ) == 0 )
+        {
+            if( setting[ MODE ].size() > 0 )
             {
                 log.error(
-                    "invalid mode '" + std::string( arg )
-                    + "' found, please refer to --help for more information" );
-                return 1;
+                    "already defined mode '" + setting[ MODE ].front() +
+                    "', unable to use additional provided mode '" + std::string( arg ) + "'" );
+                return -1;
             }
 
-            return 0;
-        } );
+            setting[ MODE ].emplace_back( arg );
+        }
+        else
+        {
+            log.error(
+                "invalid mode '" + std::string( arg ) +
+                "' found, please refer to --help for more information" );
+            return 1;
+        }
 
-    options.add( 't', "test-case-profile", libstdhl::Args::NONE,
-        "display the unique test profile identifier", [&]( const char* ) {
+        return 0;
+    } );
 
-            std::cout << libcasm_tc::Profile::get(
-                             libcasm_tc::Profile::LANGUAGE_SERVER )
-                      << "\n";
+    options.add(
+        't',
+        "test-case-profile",
+        libstdhl::Args::NONE,
+        "display the unique test profile identifier",
+        [&]( const char* ) {
 
-            return -1;
-        } );
-
-    options
-        .add( 'h', "help", libstdhl::Args::NONE, "display usage and synopsis",
-            [&]( const char* ) {
-
-                log.output( "\n" + DESCRIPTION + "\n" + log.source()->name()
-                        + ": usage: [options] mode\n"
-                        + "\n"
-                        + "mode: \n"
-                        + "  lsp                            language server protocol\n"
-                        + "\n"
-                        + "options: \n"
-                        + options.usage()
-                        + "\n" );
-
-                return -1;
-            } );
-
-    options.add( 'v', "version", libstdhl::Args::NONE,
-        "display version information", [&]( const char* ) {
-
-            log.output( "\n" + DESCRIPTION + "\n" + log.source()->name()
-                        + ": version: "
-                        + casmd::REVTAG
-                        + " [ "
-                        + __DATE__
-                        + " "
-                        + __TIME__
-                        + " ]\n"
-                        + "\n"
-                        + LICENSE );
+            std::cout << libcasm_tc::Profile::get( libcasm_tc::Profile::LANGUAGE_SERVER ) << "\n";
 
             return -1;
         } );
 
-    options.add( CONN_UDP4, libstdhl::Args::REQUIRED,
+    options.add(
+        'h', "help", libstdhl::Args::NONE, "display usage and synopsis", [&]( const char* ) {
+
+            log.output(
+                "\n" + DESCRIPTION + "\n" + log.source()->name() + ": usage: [options] mode\n" +
+                "\n" + "mode: \n" + "  lsp                            language server protocol\n" +
+                "\n" + "options: \n" + options.usage() + "\n" );
+
+            return -1;
+        } );
+
+    options.add(
+        'v', "version", libstdhl::Args::NONE, "display version information", [&]( const char* ) {
+
+            log.output(
+                "\n" + DESCRIPTION + "\n" + log.source()->name() + ": version: " + casmd::REVTAG +
+                " [ " + __DATE__ + " " + __TIME__ + " ]\n" + "\n" + LICENSE );
+
+            return -1;
+        } );
+
+    options.add(
+        CONN_UDP4,
+        libstdhl::Args::REQUIRED,
         "use a UDP IPv4 socket stream connection",
         [&]( const char* arg ) {
             setting[ CONN ].emplace_back( CONN_UDP4 );
@@ -537,8 +507,11 @@ int main( int argc, const char* argv[] )
         },
         "host:port" );
 
-    options.add( CONN_STDIO, libstdhl::Args::NONE,
-        "use a standard input/output stream", [&]( const char* arg ) {
+    options.add(
+        CONN_STDIO,
+        libstdhl::Args::NONE,
+        "use a standard input/output stream",
+        [&]( const char* arg ) {
             setting[ CONN ].emplace_back( CONN_STDIO );
             setting[ CONN_STDIO ].emplace_back( arg );
             return 0;
@@ -626,10 +599,8 @@ int main( int argc, const char* argv[] )
                         log.debug( prefix + in + "\n" );
                         flush();
 
-                        const auto request
-                            = libstdhl::Network::LSP::Packet( in );
-                        log.info(
-                            prefix + "REQ: " + request.dump( true ) + "\n" );
+                        const auto request = libstdhl::Network::LSP::Packet( in );
+                        log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
                         flush();
 
                         try
@@ -642,11 +613,9 @@ int main( int argc, const char* argv[] )
                         }
 
                         server.flush( [&]( const Message& response ) {
-                            log.info( prefix + "ACK: " + response.dump( true )
-                                      + "\n" );
+                            log.info( prefix + "ACK: " + response.dump( true ) + "\n" );
                             flush();
-                            const auto packet
-                                = libstdhl::Network::LSP::Packet( response );
+                            const auto packet = libstdhl::Network::LSP::Packet( response );
                             iface.send( packet, client );
                         } );
                         // }
@@ -691,22 +660,16 @@ int main( int argc, const char* argv[] )
                             log.debug( prefix + in + "\n" );
                             flush();
 
-                            const auto request
-                                = libstdhl::Network::LSP::Packet( in );
-                            log.info( prefix + "REQ: " + request.dump( true )
-                                      + "\n" );
+                            const auto request = libstdhl::Network::LSP::Packet( in );
+                            log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
                             flush();
 
                             request.process( server );
 
                             server.flush( [&]( const Message& response ) {
-                                log.info(
-                                    prefix + "ACK: " + response.dump( true )
-                                    + "\n" );
+                                log.info( prefix + "ACK: " + response.dump( true ) + "\n" );
                                 flush();
-                                const auto packet
-                                    = libstdhl::Network::LSP::Packet(
-                                        response );
+                                const auto packet = libstdhl::Network::LSP::Packet( response );
                                 std::cout << packet.dump();
                             } );
                         }
@@ -722,8 +685,7 @@ int main( int argc, const char* argv[] )
                 }
                 default:
                 {
-                    log.error( "unimplemented connection '" + conn
-                               + "' selected, aborting" );
+                    log.error( "unimplemented connection '" + conn + "' selected, aborting" );
                     flush();
                     return -1;
                 }

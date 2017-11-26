@@ -26,8 +26,7 @@
 
 void casmd_main_dummy( void )
 {
-    const auto source
-        = libstdhl::Memory::make< libstdhl::Log::Source >( "casmd", "CASMD" );
+    const auto source = libstdhl::Memory::make< libstdhl::Log::Source >( "casmd", "CASMD" );
 
     libstdhl::Log::defaultSource( source );
 }
