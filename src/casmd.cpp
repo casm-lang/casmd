@@ -635,28 +635,23 @@ int main( int argc, const char* argv[] )
                 {
                     while( true )
                     {
-                        try
-                        {
-                            std::string in = "";
+                        std::string in = "";
 
-                            if( std::cin.eof() )
+                        while( true )
+                        {
+                            std::string tmp = "";
+                            std::getline( std::cin, tmp );
+
+                            if( String::endsWith( tmp, "}" ) )
                             {
                                 break;
                             }
 
-                            while( not std::cin.eof() )
-                            {
-                                std::string tmp;
-                                std::cin >> tmp;
+                            in += tmp + "\r\n";
+                        }
 
-                                in += tmp;
-
-                                if( String::endsWith( tmp, "}\r\n" ) )
-                                {
-                                    break;
-                                }
-                            }
-
+                        try
+                        {
                             log.debug( prefix + in + "\n" );
                             flush();
 
@@ -680,7 +675,6 @@ int main( int argc, const char* argv[] )
                             usleep( 1000 );
                         }
                     }
-
                     break;
                 }
                 default:
