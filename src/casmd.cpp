@@ -329,6 +329,7 @@ class LanguageServer final : public ServerInterface
         pm.add< libcasm_fe::AttributionPass >();
         pm.add< libcasm_fe::SymbolRegistrationPass >();
         pm.add< libcasm_fe::SymbolResolverPass >();
+        pm.add< libcasm_fe::PropertyResolverPass >();
         pm.add< libcasm_fe::TypeCheckPass >();
         pm.add< libcasm_fe::TypeInferencePass >();
         pm.add< libcasm_fe::ConsistencyCheckPass >();
@@ -378,6 +379,7 @@ class LanguageServer final : public ServerInterface
         pm.add< libcasm_fe::AttributionPass >();
         pm.add< libcasm_fe::SymbolRegistrationPass >();
         pm.add< libcasm_fe::SymbolResolverPass >();
+        pm.add< libcasm_fe::PropertyResolverPass >();
         pm.add< libcasm_fe::TypeCheckPass >();
         pm.add< libcasm_fe::TypeInferencePass >();
         pm.add< libcasm_fe::ConsistencyCheckPass >();
