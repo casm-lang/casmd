@@ -33,7 +33,6 @@
 #include <libstdhl/libstdhl>
 #include <libstdhl/network/Lsp>
 #include <libstdhl/network/udp/IPv4>
-// #include <libcasm-rt/libcasm-rt>
 
 /**
     @brief TODO
@@ -319,21 +318,12 @@ class LanguageServer final : public ServerInterface
         m_log.info(
             std::to_string( (u64)&file ) + " ... " + fileuri.toString() + "\n\n" + file.data() );
 
+        // file is already in-memory, by-pass the LoadFilePass by setting its pass result
         libpass::PassResult pr;
-        pr.setResult< libpass::LoadFilePass >(
-            libstdhl::Memory::make< libpass::LoadFilePass::Data >( file ) );
+        pr.setOutput< libpass::LoadFilePass >( file );
 
         libpass::PassManager pm;
         pm.setDefaultResult( pr );
-        pm.add< libcasm_fe::SourceToAstPass >();
-        pm.add< libcasm_fe::AttributionPass >();
-        pm.add< libcasm_fe::SymbolRegistrationPass >();
-        pm.add< libcasm_fe::SymbolResolverPass >();
-        pm.add< libcasm_fe::PropertyResolverPass >();
-        pm.add< libcasm_fe::TypeCheckPass >();
-        pm.add< libcasm_fe::TypeInferencePass >();
-        pm.add< libcasm_fe::ConsistencyCheckPass >();
-
         pm.setDefaultPass< libcasm_fe::ConsistencyCheckPass >();
 
         try
@@ -370,22 +360,10 @@ class LanguageServer final : public ServerInterface
             std::to_string( (u64)&file ) + " ... " + fileuri.toString() + "\n\n" + file.data() );
 
         libpass::PassResult pr;
-        pr.setResult< libpass::LoadFilePass >(
-            libstdhl::Memory::make< libpass::LoadFilePass::Data >( file ) );
+        pr.setOutput< libpass::LoadFilePass >( file );
 
         libpass::PassManager pm;
         pm.setDefaultResult( pr );
-        pm.add< libcasm_fe::SourceToAstPass >();
-        pm.add< libcasm_fe::AttributionPass >();
-        pm.add< libcasm_fe::SymbolRegistrationPass >();
-        pm.add< libcasm_fe::SymbolResolverPass >();
-        pm.add< libcasm_fe::PropertyResolverPass >();
-        pm.add< libcasm_fe::TypeCheckPass >();
-        pm.add< libcasm_fe::TypeInferencePass >();
-        pm.add< libcasm_fe::ConsistencyCheckPass >();
-        pm.add< libcasm_fe::FrameSizeDeterminationPass >();
-        pm.add< libcasm_fe::NumericExecutionPass >();
-
         pm.setDefaultPass< libcasm_fe::NumericExecutionPass >();
 
         std::ostringstream local;
