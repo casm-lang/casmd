@@ -1,10 +1,10 @@
 #
-#   Copyright (c) 2017 CASM Organization
+#   Copyright (C) 2017-2018 CASM Organization <https://casm-lang.org>
 #   All rights reserved.
 #
 #   Developed by: Philipp Paulweber
 #                 Emmanuel Pescosta
-#                 https://github.com/casm-lang/casmd
+#                 <https://github.com/casm-lang/casmd>
 #
 #   This file is part of casmd.
 #
