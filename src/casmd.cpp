@@ -295,7 +295,7 @@ class LanguageServer final : public ServerInterface
     {
         m_log.info( __FUNCTION__ );
         CodeLensResult res;
-        res.addCodeLens( Range( Position( 1, 1 ), Position( 1, 1 ) ) );
+        //res.addCodeLens( Range( Position( 1, 1 ), Position( 1, 1 ) ) );
 
         const auto& fileuri = params.textDocument().uri();
         textDocument_analyze( fileuri );
