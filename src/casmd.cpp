@@ -32,7 +32,9 @@
 #include <libstdhl/file/TextDocument>
 #include <libstdhl/libstdhl>
 #include <libstdhl/network/Lsp>
-#include <libstdhl/network/udp/IPv4>
+#include <libstdhl/network/tcp/IPv4>
+
+#include <regex>
 
 /**
     @brief TODO
@@ -160,6 +162,7 @@ class LanguageServer final : public ServerInterface
     LanguageServer( Logger& log )
     : ServerInterface()
     , m_log( log )
+    , m_files()
     {
         m_log.info( "started LSP" );
     }
@@ -295,7 +298,7 @@ class LanguageServer final : public ServerInterface
     {
         m_log.info( __FUNCTION__ );
         CodeLensResult res;
-        //res.addCodeLens( Range( Position( 1, 1 ), Position( 1, 1 ) ) );
+        // res.addCodeLens( Range( Position( 1, 1 ), Position( 1, 1 ) ) );
 
         const auto& fileuri = params.textDocument().uri();
         textDocument_analyze( fileuri );
@@ -401,7 +404,7 @@ static constexpr const char* MODE = "mode";
 static constexpr const char* MODE_LSP = "lsp";
 
 static constexpr const char* CONN = "connection";
-static constexpr const char* CONN_UDP4 = "udp4";
+static constexpr const char* CONN_TCP4 = "tcp4";
 static constexpr const char* CONN_STDIO = "stdio";
 
 int main( int argc, const char* argv[] )
@@ -477,12 +480,12 @@ int main( int argc, const char* argv[] )
         } );
 
     options.add(
-        CONN_UDP4,
+        CONN_TCP4,
         libstdhl::Args::REQUIRED,
-        "use a UDP IPv4 socket stream connection",
+        "use a TCP IPv4 socket stream connection",
         [&]( const char* arg ) {
-            setting[ CONN ].emplace_back( CONN_UDP4 );
-            setting[ CONN_UDP4 ].emplace_back( arg );
+            setting[ CONN ].emplace_back( CONN_TCP4 );
+            setting[ CONN_TCP4 ].emplace_back( arg );
             return 0;
         },
         "host:port" );
@@ -558,57 +561,61 @@ int main( int argc, const char* argv[] )
 
             switch( String::value( conn ) )
             {
-                case String::value( CONN_UDP4 ):
+                case String::value( CONN_TCP4 ):
                 {
-                    auto iface = libstdhl::Network::UDP::IPv4( kind );
-
+                    auto iface = libstdhl::Network::TCP::IPv4( kind, true );
                     iface.connect();
 
+                    auto session = iface.session();
                     while( true )
                     {
-                        // try
-                        // {
-                        std::string in;
-                        const auto client = iface.receive( in );
-
-                        if( in.size() == 0 )
+                        std::string tcpBuffer = "";
+                        char buffer[ 1024 * 1024 ];
+                        while( true )
                         {
-                            continue;
+                            const auto result = ::recv(
+                                session.socket()->id(), (void*)( &buffer[ 0 ] ), 1024 * 1024, 0 );
+
+                            if( result < 0 )
+                            {
+                                break;
+                            }
+
+                            buffer[ result ] = '\0';
+                            tcpBuffer += std::string( buffer );
+                            break;
                         }
 
-                        log.debug( prefix + in + "\n" );
+                        log.info( prefix + "req: " + tcpBuffer + "\n" );
                         flush();
 
-                        const auto request = libstdhl::Network::LSP::Packet( in );
-                        log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
-                        flush();
+                        std::vector< libstdhl::Network::LSP::Packet > packages;
+                        libstdhl::Network::LSP::Packet::fromString( tcpBuffer, packages );
+                        for( const auto& request : packages )
+                        {
+                            log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
+                            flush();
 
-                        try
-                        {
-                            request.process( server );
-                        }
-                        catch( const std::exception& e )
-                        {
-                            log.error( e.what() );
+                            try
+                            {
+                                request.process( server );
+                            }
+                            catch( const std::exception& e )
+                            {
+                                log.error( e.what() );
+                            }
                         }
 
                         server.flush( [&]( const Message& response ) {
                             log.info( prefix + "ACK: " + response.dump( true ) + "\n" );
                             flush();
                             const auto packet = libstdhl::Network::LSP::Packet( response );
-                            iface.send( packet, client );
+                            session.send( packet.dump() );
                         } );
-                        // }
-                        // catch( const std::exception& e )
-                        // {
-                        //     log.error( e.what() );
-                        //     flush();
-                        //     usleep( 1000 );
-                        // }
                     }
 
+                    session.disconnect();
                     iface.disconnect();
-
                     break;
                 }
                 case String::value( CONN_STDIO ):
