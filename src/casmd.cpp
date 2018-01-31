@@ -22,15 +22,13 @@
 //  along with casmd. If not, see <http://www.gnu.org/licenses/>.
 //
 
+#include "LanguageServer.h"
 #include "casmd/Version"
-#include "DiagnosticFormatter.h"
 
-#include <libcasm-fe/libcasm-fe>
-#include <libcasm-ir/libcasm-ir>
-#include <libpass/libpass>
-#include <libstdhl/file/TextDocument>
-#include <libstdhl/libstdhl>
-#include <libstdhl/network/Lsp>
+#include <libpass/PassManager>
+#include <libstdhl/Args>
+#include <libstdhl/Memory>
+#include <libstdhl/String>
 #include <libstdhl/network/tcp/IPv4>
 
 /**
@@ -38,260 +36,6 @@
 
     TODO
 */
-
-static const std::string DESCRIPTION =
-    "Corinthian Abstract State Machine (CASM) Language "
-    "Server/Service Daemon\n";
-static const std::string PROFILE = "casmd";
-
-using namespace libstdhl;
-using namespace Network;
-using namespace LSP;
-
-
-class LanguageServer final : public ServerInterface
-{
-  public:
-    LanguageServer( Logger& log )
-    : ServerInterface()
-    , m_log( log )
-    , m_files()
-    {
-        m_log.info( "started LSP" );
-    }
-
-    InitializeResult initialize( const InitializeParams& params ) override
-    {
-        m_log.info( __FUNCTION__ );
-
-        // TextDocumentSyncOptions tdso;
-        // tdso.setChange( TextDocumentSyncKind::Full );
-        // tdso.setOpenClose( true );
-
-        ServerCapabilities sc;
-        sc.setTextDocumentSync( TextDocumentSyncKind::Full );
-        sc.setCodeActionProvider( true );
-
-        ExecuteCommandOptions eco;
-        eco.addCommand( "version" );
-        eco.addCommand( "run" );
-        sc.setExecuteCommandProvider( eco );
-
-        CodeLensOptions clo;
-        sc.setCodeLensProvider( clo );
-        sc.setHoverProvider( true );
-
-        InitializeResult res( sc );
-        m_log.debug( res.dump() );
-        return res;
-    }
-
-    void initialized( void ) noexcept override
-    {
-        m_log.info( __FUNCTION__ );
-    }
-
-    void shutdown( void ) override
-    {
-        m_log.info( __FUNCTION__ );
-    }
-
-    void exit( void ) noexcept override
-    {
-        m_log.info( __FUNCTION__ );
-    }
-
-    ExecuteCommandResult workspace_executeCommand( const ExecuteCommandParams& params ) override
-    {
-        m_log.info( __FUNCTION__ );
-
-        const auto& command = params.command();
-        const auto cmd = libstdhl::String::value( command );
-        switch( cmd )
-        {
-            case String::value( "version" ):
-            {
-                return "\n" + DESCRIPTION + "\n" + m_log.source()->name() +
-                       ": version: " + casmd::REVTAG + " [ " + __DATE__ + " " + __TIME__ + " ]\n" +
-                       "\n" + NOTICE;
-            }
-            case String::value( "run" ):
-            {
-                const DocumentUri fileuri = DocumentUri::fromString( "inmemory://model.casm" );
-                return textDocument_execute( fileuri );
-            }
-        }
-
-        return ExecuteCommandResult();
-    }
-
-    void textDocument_didOpen( const DidOpenTextDocumentParams& params ) noexcept override
-    {
-        m_log.info( __FUNCTION__ );
-
-        const auto& fileuri = params.textDocument().uri();
-        const auto& filestr = params.textDocument().text();
-        const auto& fileext = params.textDocument().languageId();
-        const auto& filerev = params.textDocument().version();
-
-        auto result =
-            m_files.emplace( fileuri.toString(), libstdhl::File::TextDocument{ fileuri, fileext } );
-
-        if( not result.second )
-        {
-            m_log.error( "text document '" + fileuri.toString() + "' already opened!" );
-            return;
-        }
-
-        result.first->second.setData( filestr );
-
-        // textDocument_analyze( result.first->second );
-    }
-
-    void textDocument_didChange( const DidChangeTextDocumentParams& params ) noexcept override
-    {
-        m_log.info( __FUNCTION__ );
-
-        const auto& fileuri = params.textDocument().uri();
-        const auto& filerev = params.textDocument().version();
-
-        auto result = m_files.find( fileuri.toString() );
-        if( result == m_files.end() )
-        {
-            m_log.error( "unable to find text document '" + fileuri.toString() + "'" );
-            return;
-        }
-
-        result->second.setData( params[ "contentChanges" ][ 0 ][ "text" ] );
-
-        // textDocument_analyze( result->second );
-    }
-
-    HoverResult textDocument_hover( const HoverParams& params ) override
-    {
-        m_log.info( __FUNCTION__ );
-
-        const auto& fileuri = params.textDocument().uri();
-        const auto& filepos = params.position();
-
-        // MarkedString( "hi there!" )
-        HoverResult res;
-        return res;
-    }
-
-    CodeActionResult textDocument_codeAction( const CodeActionParams& params ) override
-    {
-        m_log.info( __FUNCTION__ );
-        CodeActionResult res;
-
-        return res;
-    }
-
-    CodeLensResult textDocument_codeLens( const CodeLensParams& params ) override
-    {
-        m_log.info( __FUNCTION__ );
-        CodeLensResult res;
-        // res.addCodeLens( Range( Position( 1, 1 ), Position( 1, 1 ) ) );
-
-        const auto& fileuri = params.textDocument().uri();
-        textDocument_analyze( fileuri );
-
-        return res;
-    }
-
-  private:
-    void textDocument_analyze( const DocumentUri& fileuri )
-    {
-        auto result = m_files.find( fileuri.toString() );
-        if( result == m_files.end() )
-        {
-            m_log.error( "unable to find text document '" + fileuri.toString() + "'" );
-            return;
-        }
-
-        auto& file = result->second;
-
-        m_log.info(
-            std::to_string( (u64)&file ) + " ... " + fileuri.toString() + "\n\n" + file.data() );
-
-        // file is already in-memory, by-pass the LoadFilePass by setting its pass result
-        libpass::PassResult pr;
-        pr.setOutput< libpass::LoadFilePass >( file );
-
-        libpass::PassManager pm;
-        pm.setDefaultResult( pr );
-        pm.setDefaultPass< libcasm_fe::ConsistencyCheckPass >();
-
-        try
-        {
-            pm.run();
-        }
-        catch( const std::exception& e )
-        {
-            m_log.error( "pass manager triggered an exception: '" + std::string( e.what() ) + "'" );
-        }
-
-        casmd::DiagnosticFormatter formatter( "casmd" );
-        libstdhl::Log::OutputStreamSink sink( std::cerr, formatter );
-        pm.stream().flush( sink );
-
-        PublishDiagnosticsParams res( file.path(), formatter.diagnostics() );
-
-        textDocument_publishDiagnostics( res );
-    }
-
-    std::string textDocument_execute( const DocumentUri& fileuri )
-    {
-        auto result = m_files.find( fileuri.toString() );
-        if( result == m_files.end() )
-        {
-            const auto msg = "unable to find text document '" + fileuri.toString() + "'";
-            m_log.error( msg );
-            throw std::invalid_argument( msg );
-        }
-
-        auto& file = result->second;
-
-        m_log.info(
-            std::to_string( (u64)&file ) + " ... " + fileuri.toString() + "\n\n" + file.data() );
-
-        libpass::PassResult pr;
-        pr.setOutput< libpass::LoadFilePass >( file );
-
-        libpass::PassManager pm;
-        pm.setDefaultResult( pr );
-        pm.setDefaultPass< libcasm_fe::NumericExecutionPass >();
-
-        std::ostringstream local;
-        auto cout_buff = std::cout.rdbuf();
-        std::cout.rdbuf( local.rdbuf() );
-
-        try
-        {
-            pm.run();
-        }
-        catch( const std::exception& e )
-        {
-            m_log.error( "pass manager triggered an exception: '" + std::string( e.what() ) + "'" );
-        }
-
-        std::cout.rdbuf( cout_buff );
-
-        casmd::DiagnosticFormatter formatter( "casmd" );
-        libstdhl::Log::OutputStreamSink sink( std::cerr, formatter );
-        pm.stream().flush( sink );
-
-        PublishDiagnosticsParams res( file.path(), formatter.diagnostics() );
-
-        textDocument_publishDiagnostics( res );
-
-        return local.str();
-    }
-
-  private:
-    Logger& m_log;
-    std::unordered_map< std::string, libstdhl::File::TextDocument > m_files;
-};
 
 static constexpr const char* MODE = "mode";
 static constexpr const char* MODE_LSP = "lsp";
@@ -304,7 +48,8 @@ int main( int argc, const char* argv[] )
 {
     libpass::PassManager pm;
     libstdhl::Logger log( pm.stream() );
-    log.setSource( libstdhl::Memory::make< libstdhl::Log::Source >( argv[ 0 ], DESCRIPTION ) );
+    log.setSource(
+        libstdhl::Memory::make< libstdhl::Log::Source >( argv[ 0 ], casmd::DESCRIPTION ) );
 
     auto flush = [&argv, &pm]( void ) {
         libstdhl::Log::ApplicationFormatter f( argv[ 0 ] );
@@ -346,7 +91,7 @@ int main( int argc, const char* argv[] )
         "display the unique test profile identifier",
         [&]( const char* ) {
 
-            std::cout << PROFILE << "\n";
+            std::cout << casmd::PROFILE << "\n";
             return -1;
         } );
 
@@ -354,9 +99,10 @@ int main( int argc, const char* argv[] )
         'h', "help", libstdhl::Args::NONE, "display usage and synopsis", [&]( const char* ) {
 
             log.output(
-                "\n" + DESCRIPTION + "\n" + log.source()->name() + ": usage: [options] mode\n" +
-                "\n" + "mode: \n" + "  lsp                            language server protocol\n" +
-                "\n" + "options: \n" + options.usage() + "\n" );
+                "\n" + std::string( casmd::DESCRIPTION ) + "\n" + log.source()->name() +
+                ": usage: [options] mode\n" + "\n" + "mode: \n" +
+                "  lsp                            language server protocol\n" + "\n" +
+                "options: \n" + options.usage() + "\n" );
 
             return -1;
         } );
@@ -365,8 +111,9 @@ int main( int argc, const char* argv[] )
         'v', "version", libstdhl::Args::NONE, "display version information", [&]( const char* ) {
 
             log.output(
-                "\n" + DESCRIPTION + "\n" + log.source()->name() + ": version: " + casmd::REVTAG +
-                " [ " + __DATE__ + " " + __TIME__ + " ]\n" + "\n" + casmd::NOTICE );
+                "\n" + std::string( casmd::DESCRIPTION ) + "\n" + log.source()->name() +
+                ": version: " + casmd::REVTAG + " [ " + __DATE__ + " " + __TIME__ + " ]\n" + "\n" +
+                casmd::NOTICE );
 
             return -1;
         } );
@@ -391,18 +138,6 @@ int main( int argc, const char* argv[] )
             setting[ CONN_STDIO ].emplace_back( arg );
             return 0;
         } );
-
-    // for( auto& p : libpass::PassRegistry::registeredPasses() )
-    // {
-    //     libpass::PassInfo& pi = *p.second;
-
-    //     if( pi.argChar() or pi.argString() )
-    //     {
-    //         options.add( pi.argChar(), pi.argString(),
-    //         libstdhl::Args::NONE,
-    //             pi.description(), pi.argAction() );
-    //     }
-    // }
 
     if( auto ret = options.parse( log ) )
     {
@@ -449,7 +184,7 @@ int main( int argc, const char* argv[] )
         case String::value( MODE_LSP ):
         {
             // language server protocol mode
-            LanguageServer server( log );
+            casmd::LanguageServer server( log );
 
             switch( String::value( conn ) )
             {
@@ -485,7 +220,7 @@ int main( int argc, const char* argv[] )
                             }
                         }
 
-                        server.flush( [&]( const Message& response ) {
+                        server.flush( [&]( const libstdhl::Network::LSP::Message& response ) {
                             log.info( prefix + "ACK: " + response.dump( true ) + "\n" );
                             flush();
                             const auto packet = libstdhl::Network::LSP::Packet( response );
@@ -536,7 +271,7 @@ int main( int argc, const char* argv[] )
                             }
                         }
 
-                        server.flush( [&]( const Message& response ) {
+                        server.flush( [&]( const libstdhl::Network::LSP::Message& response ) {
                             log.info( prefix + "ACK: " + response.dump( true ) + "\n" );
                             flush();
                             const auto packet = libstdhl::Network::LSP::Packet( response );

@@ -35,6 +35,10 @@
 
 namespace casmd
 {
+    constexpr const char* DESCRIPTION =
+        "Corinthian Abstract State Machine (CASM) Language "
+        "Server/Service Daemon\n";
+    constexpr const char* PROFILE = "casmd";
     constexpr const char* REVTAG = "@GIT_REVTAG@";
     constexpr const char* COMMIT = "@GIT_COMMIT@";
     constexpr const char* BRANCH = "@GIT_BRANCH@";
