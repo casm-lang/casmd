@@ -37,6 +37,10 @@ add_library( ${PROJECT}-cpp OBJECT
 
 configure_file(
   Version.in.h
+  ${PROJECT}/Version.h
+  )
+configure_file(
+  Version.in
   ${PROJECT}/Version
   )
 
