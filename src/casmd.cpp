@@ -603,47 +603,49 @@ int main( int argc, const char* argv[] )
                 }
                 case String::value( CONN_STDIO ):
                 {
+                    std::ios_base::sync_with_stdio( false );
+                    log.info( "starting new STDIO session" );
+                    flush();
+
                     while( true )
                     {
-                        std::string in = "";
+                        std::string message = "";
 
                         while( true )
                         {
-                            std::string tmp = "";
+                            std::string tmp;
                             std::getline( std::cin, tmp );
+                            message += tmp + "\n";
 
-                            if( String::endsWith( tmp, "}" ) )
+                            if( String::endsWith( tmp, "}\r" ) )
                             {
                                 break;
                             }
-
-                            in += tmp + "\r\n";
                         }
 
-                        try
+                        std::vector< libstdhl::Network::LSP::Packet > packages;
+                        libstdhl::Network::LSP::Packet::fromString( message, packages );
+                        for( const auto& request : packages )
                         {
-                            log.debug( prefix + in + "\n" );
-                            flush();
-
-                            const auto request = libstdhl::Network::LSP::Packet( in );
                             log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
                             flush();
 
-                            request.process( server );
+                            try
+                            {
+                                request.process( server );
+                            }
+                            catch( const std::exception& e )
+                            {
+                                log.error( e.what() );
+                            }
+                        }
 
-                            server.flush( [&]( const Message& response ) {
-                                log.info( prefix + "ACK: " + response.dump( true ) + "\n" );
-                                flush();
-                                const auto packet = libstdhl::Network::LSP::Packet( response );
-                                std::cout << packet.dump();
-                            } );
-                        }
-                        catch( const std::exception& e )
-                        {
-                            log.error( e.what() );
+                        server.flush( [&]( const Message& response ) {
+                            log.info( prefix + "ACK: " + response.dump( true ) + "\n" );
                             flush();
-                            usleep( 1000 );
-                        }
+                            const auto packet = libstdhl::Network::LSP::Packet( response );
+                            std::cout << packet.dump();
+                        } );
                     }
                     break;
                 }
