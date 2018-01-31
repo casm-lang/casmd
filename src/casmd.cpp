@@ -22,19 +22,15 @@
 //  along with casmd. If not, see <http://www.gnu.org/licenses/>.
 //
 
-#include "License.h"
 #include "casmd/Version"
 
 #include <libcasm-fe/libcasm-fe>
 #include <libcasm-ir/libcasm-ir>
-#include <libcasm-tc/Profile>
 #include <libpass/libpass>
 #include <libstdhl/file/TextDocument>
 #include <libstdhl/libstdhl>
 #include <libstdhl/network/Lsp>
 #include <libstdhl/network/tcp/IPv4>
-
-#include <regex>
 
 /**
     @brief TODO
@@ -45,6 +41,7 @@
 static const std::string DESCRIPTION =
     "Corinthian Abstract State Machine (CASM) Language "
     "Server/Service Daemon\n";
+static const std::string PROFILE = "casmd";
 
 using namespace libstdhl;
 using namespace Network;
@@ -220,7 +217,7 @@ class LanguageServer final : public ServerInterface
             {
                 return "\n" + DESCRIPTION + "\n" + m_log.source()->name() +
                        ": version: " + casmd::REVTAG + " [ " + __DATE__ + " " + __TIME__ + " ]\n" +
-                       "\n" + LICENSE;
+                       "\n" + NOTICE;
             }
             case String::value( "run" ):
             {
@@ -453,8 +450,7 @@ int main( int argc, const char* argv[] )
         "display the unique test profile identifier",
         [&]( const char* ) {
 
-            std::cout << libcasm_tc::Profile::get( libcasm_tc::Profile::LANGUAGE_SERVER ) << "\n";
-
+            std::cout << PROFILE << "\n";
             return -1;
         } );
 
@@ -474,7 +470,7 @@ int main( int argc, const char* argv[] )
 
             log.output(
                 "\n" + DESCRIPTION + "\n" + log.source()->name() + ": version: " + casmd::REVTAG +
-                " [ " + __DATE__ + " " + __TIME__ + " ]\n" + "\n" + LICENSE );
+                " [ " + __DATE__ + " " + __TIME__ + " ]\n" + "\n" + casmd::NOTICE );
 
             return -1;
         } );
@@ -565,32 +561,19 @@ int main( int argc, const char* argv[] )
                 {
                     auto iface = libstdhl::Network::TCP::IPv4( kind, true );
                     iface.connect();
+                    log.info( "connected to '" + kind + "'" );
+                    flush();
 
                     auto session = iface.session();
+                    log.info( "starting new TCP::IPv4 session" );
+                    flush();
+
                     while( true )
                     {
-                        std::string tcpBuffer = "";
-                        char buffer[ 1024 * 1024 ];
-                        while( true )
-                        {
-                            const auto result = ::recv(
-                                session.socket()->id(), (void*)( &buffer[ 0 ] ), 1024 * 1024, 0 );
-
-                            if( result < 0 )
-                            {
-                                break;
-                            }
-
-                            buffer[ result ] = '\0';
-                            tcpBuffer += std::string( buffer );
-                            break;
-                        }
-
-                        log.info( prefix + "req: " + tcpBuffer + "\n" );
-                        flush();
+                        const auto message = session.receive();
 
                         std::vector< libstdhl::Network::LSP::Packet > packages;
-                        libstdhl::Network::LSP::Packet::fromString( tcpBuffer, packages );
+                        libstdhl::Network::LSP::Packet::fromString( message, packages );
                         for( const auto& request : packages )
                         {
                             log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
