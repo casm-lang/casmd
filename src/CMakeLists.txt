@@ -34,6 +34,7 @@ include_directories(
 add_library( ${PROJECT}-cpp OBJECT
   casmd.cpp
   DiagnosticFormatter.cpp
+  LanguageServer.cpp
   )
 
 configure_file(
