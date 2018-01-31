@@ -23,6 +23,7 @@
 //
 
 #include "casmd/Version"
+#include "DiagnosticFormatter.h"
 
 #include <libcasm-fe/libcasm-fe>
 #include <libcasm-ir/libcasm-ir>
@@ -47,111 +48,6 @@ using namespace libstdhl;
 using namespace Network;
 using namespace LSP;
 
-class DiagnosticFormatter : public libstdhl::Log::StringFormatter
-{
-  public:
-    DiagnosticFormatter( const std::string& name )
-    : m_name( name )
-    {
-    }
-
-    std::string visit( libstdhl::Log::Data& item ) override
-    {
-        std::string msg = m_name + ": ";
-
-        msg += item.level().accept( *this ) + ": ";
-
-        u1 first = true;
-
-        for( auto i : item.items() )
-        {
-            if( i->id() == libstdhl::Log::Item::ID::LOCATION )
-            {
-                continue;
-            }
-
-            msg += ( first ? "" : ", " ) + i->accept( *this );
-
-            first = false;
-        }
-
-        // #ifndef NDEBUG
-        //         // auto tsp = item.timestamp().accept( *this );
-        //         auto src = item.source()->accept( *this );
-        //         auto cat = item.category()->accept( *this );
-        //         msg += " [" + /*tsp +*/ src + ", " + cat + "]";
-        // #endif
-
-        std::string result = msg;
-
-        for( auto i : item.items() )
-        {
-            if( i->id() == libstdhl::Log::Item::ID::LOCATION )
-            {
-                result += "\n" + i->accept( *this );
-
-                const auto& location = static_cast< const libstdhl::Log::LocationItem& >( *i );
-
-                addDiagnostic( item.level(), location, msg );
-            }
-        }
-
-        return result;
-    }
-
-    const std::vector< Diagnostic >& diagnostics( void ) const
-    {
-        return m_diagnostics;
-    }
-
-  private:
-    void addDiagnostic(
-        const libstdhl::Log::Level& level,
-        const libstdhl::Log::LocationItem& location,
-        const std::string& msg )
-    {
-        Position start(
-            location.range().begin().line() - 1, location.range().begin().column() - 1 );
-        Position end( location.range().end().line() - 1, location.range().end().column() - 1 );
-        Range range( start, end );
-
-        Diagnostic diagnostic( range, msg );
-
-        switch( level.id() )
-        {
-            case libstdhl::Log::Level::ID::ERROR:
-            {
-                diagnostic.setSeverity( DiagnosticSeverity::Error );
-                break;
-            }
-            case libstdhl::Log::Level::ID::WARNING:
-            {
-                diagnostic.setSeverity( DiagnosticSeverity::Warning );
-                break;
-            }
-            case libstdhl::Log::Level::ID::INFORMATIONAL:
-            {
-                diagnostic.setSeverity( DiagnosticSeverity::Information );
-                break;
-            }
-            case libstdhl::Log::Level::ID::NOTICE:
-            {
-                diagnostic.setSeverity( DiagnosticSeverity::Hint );
-                break;
-            }
-            default:
-            {
-                break;
-            }
-        }
-
-        m_diagnostics.emplace_back( diagnostic );
-    }
-
-  private:
-    std::string m_name;
-    std::vector< Diagnostic > m_diagnostics;
-};
 
 class LanguageServer final : public ServerInterface
 {
@@ -335,7 +231,7 @@ class LanguageServer final : public ServerInterface
             m_log.error( "pass manager triggered an exception: '" + std::string( e.what() ) + "'" );
         }
 
-        DiagnosticFormatter formatter( "casmd" );
+        casmd::DiagnosticFormatter formatter( "casmd" );
         libstdhl::Log::OutputStreamSink sink( std::cerr, formatter );
         pm.stream().flush( sink );
 
@@ -381,7 +277,7 @@ class LanguageServer final : public ServerInterface
 
         std::cout.rdbuf( cout_buff );
 
-        DiagnosticFormatter formatter( "casmd" );
+        casmd::DiagnosticFormatter formatter( "casmd" );
         libstdhl::Log::OutputStreamSink sink( std::cerr, formatter );
         pm.stream().flush( sink );
 
