@@ -60,7 +60,6 @@ int main( int argc, const char* argv[] )
     std::unordered_map< std::string, std::vector< std::string > > setting;
 
     libstdhl::Args options( argc, argv, libstdhl::Args::DEFAULT, [&]( const char* arg ) {
-
         if( strcmp( arg, MODE_LSP ) == 0 )
         {
             if( setting[ MODE ].size() > 0 )
@@ -90,14 +89,12 @@ int main( int argc, const char* argv[] )
         libstdhl::Args::NONE,
         "display the unique test profile identifier",
         [&]( const char* ) {
-
             std::cout << casmd::PROFILE << "\n";
             return -1;
         } );
 
     options.add(
         'h', "help", libstdhl::Args::NONE, "display usage and synopsis", [&]( const char* ) {
-
             log.output(
                 "\n" + std::string( casmd::DESCRIPTION ) + "\n" + log.source()->name() +
                 ": usage: [options] mode\n" + "\n" + "mode: \n" +
@@ -109,7 +106,6 @@ int main( int argc, const char* argv[] )
 
     options.add(
         'v', "version", libstdhl::Args::NONE, "display version information", [&]( const char* ) {
-
             log.output(
                 "\n" + std::string( casmd::DESCRIPTION ) + "\n" + log.source()->name() +
                 ": version: " + casmd::REVTAG + " [ " + __DATE__ + " " + __TIME__ + " ]\n" + "\n" +
