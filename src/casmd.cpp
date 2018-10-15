@@ -29,7 +29,7 @@
 #include <libstdhl/Args>
 #include <libstdhl/Memory>
 #include <libstdhl/String>
-#include <libstdhl/network/tcp/IPv4>
+#include <libstdhl/net/tcp/IPv4>
 
 /**
     @brief TODO

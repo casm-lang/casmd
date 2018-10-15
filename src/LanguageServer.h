@@ -32,8 +32,8 @@
 */
 
 #include <libstdhl/Log>
-#include <libstdhl/file/TextDocument>
-#include <libstdhl/network/Lsp>
+#include <libstdhl/data/file/TextDocument>
+#include <libstdhl/net/lsp/LSP>
 
 #include <unordered_map>
 

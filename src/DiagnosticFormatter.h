@@ -32,7 +32,7 @@
 */
 
 #include <libstdhl/Log>
-#include <libstdhl/network/Lsp>
+#include <libstdhl/net/lsp/LSP>
 
 namespace casmd
 {
