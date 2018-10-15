@@ -24,15 +24,21 @@
 
 #include "main.h"
 
+#include <casmd/Version>
+
 void casmd_main_dummy( void )
 {
     const auto source = libstdhl::Memory::make< libstdhl::Log::Source >( "casmd", "CASMD" );
-
     libstdhl::Log::defaultSource( source );
 }
 
 TEST( casmd_main, empty )
 {
+    std::cout << casmd::REVTAG << "\n";
+    std::cout << casmd::COMMIT << "\n";
+    std::cout << casmd::BRANCH << "\n";
+    std::cout << casmd::LICENSE << "\n";
+    std::cout << casmd::NOTICE << "\n";
 }
 
 //
