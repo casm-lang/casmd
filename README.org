@@ -23,13 +23,22 @@
 # 
 [[https://github.com/casm-lang/casm-lang.logo/raw/master/etc/headline.png]]
 
-* casmd
+#+options: toc:nil
+
+
+* casmd: CASM Language Server Daemon
+
+[[https://gitter.im/casm-lang/casmd][https://badges.gitter.im/casm-lang/casmd.png]]
+[[https://ci.casm-lang.org/teams/main/pipelines/development/jobs/casmd-master][ @@html:<img src="https://ci.casm-lang.org/api/v1/teams/main/pipelines/development/jobs/casmd-master/badge">@@ ]]
+[[https://cirrus-ci.com/github/casm-lang/casmd][https://api.cirrus-ci.com/github/casm-lang/casmd.svg]]
+[[https://codecov.io/gh/casm-lang/casmd][https://codecov.io/gh/casm-lang/casmd/badge.svg]]
+[[https://github.com/casm-lang/casmd/tags][https://img.shields.io/github/tag/casm-lang/casmd.svg]]
+[[https://github.com/casm-lang/casmd/blob/master/LICENSE.txt][https://img.shields.io/badge/license-GPLv3-blue.svg]]
 
 This project contains a language server (service) daemon application for the Abstract State Machine (ASM) language CASM, which can be used to perform various validation and diagnostic operations.
 
-** Status
-
 TBD
+
 
 ** Copyright and License
 
