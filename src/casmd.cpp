@@ -233,6 +233,7 @@ int main( int argc, const char* argv[] )
                     buffer.reserve( 4096 );
                     while( true )
                     {
+                        buffer = "";
                         while( true )
                         {
                             std::string tmp;
@@ -244,10 +245,21 @@ int main( int argc, const char* argv[] )
                             }
                         }
 
+                        libstdhl::Network::LSP::Protocol header( 0 );
+                        libstdhl::Network::LSP::Message payload;
+
                         log.info( prefix + "REQ: HEADER: " + buffer + "\n" );
                         flush();
-                        libstdhl::Network::LSP::Protocol header =
-                            libstdhl::Network::LSP::Protocol::parse( buffer );
+                        try
+                        {
+                            header = libstdhl::Network::LSP::Protocol::parse( buffer );
+                        }
+                        catch( const std::exception& e )
+                        {
+                            log.error( e.what() );
+                            flush();
+                            continue;
+                        }
 
                         const auto length = header.length();
                         if( buffer.length() < length )
@@ -259,8 +271,17 @@ int main( int argc, const char* argv[] )
 
                         log.info( prefix + "REQ: CONTENT: " + buffer + "\n" );
                         flush();
-                        libstdhl::Network::LSP::Message payload =
-                            libstdhl::Network::LSP::Message::parse( buffer );
+
+                        try
+                        {
+                            payload = libstdhl::Network::LSP::Message::parse( buffer );
+                        }
+                        catch( const std::exception& e )
+                        {
+                            log.error( e.what() );
+                            flush();
+                            continue;
+                        }
 
                         libstdhl::Network::LSP::Packet request( header, payload );
                         log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
