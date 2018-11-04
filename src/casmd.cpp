@@ -298,7 +298,7 @@ int main( int argc, const char* argv[] )
 
                         server.flush( [&]( const libstdhl::Network::LSP::Message& response ) {
                             const auto packet = libstdhl::Network::LSP::Packet( response );
-                            std::cout << packet.dump();
+                            std::cout << packet.dump() << std::flush;
                             log.info( prefix + "ACK: " + packet.dump( true ) + "\n" );
                             flush();
                         } );
