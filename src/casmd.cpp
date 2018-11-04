@@ -198,22 +198,17 @@ int main( int argc, const char* argv[] )
                     while( true )
                     {
                         const auto message = session.receive();
+                        const auto request = libstdhl::Network::LSP::Packet::parse( message );
+                        log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
+                        flush();
 
-                        std::vector< libstdhl::Network::LSP::Packet > packages;
-                        libstdhl::Network::LSP::Packet::fromString( message, packages );
-                        for( const auto& request : packages )
+                        try
                         {
-                            log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
-                            flush();
-
-                            try
-                            {
-                                request.process( server );
-                            }
-                            catch( const std::exception& e )
-                            {
-                                log.error( e.what() );
-                            }
+                            request.process( server );
+                        }
+                        catch( const std::exception& e )
+                        {
+                            log.error( e.what() );
                         }
 
                         server.flush( [&]( const libstdhl::Network::LSP::Message& response ) {
@@ -234,44 +229,78 @@ int main( int argc, const char* argv[] )
                     log.info( "starting new STDIO session" );
                     flush();
 
+                    std::string buffer;
+                    buffer.reserve( 4096 );
                     while( true )
                     {
-                        std::string message = "";
-
+                        buffer = "";
                         while( true )
                         {
                             std::string tmp;
                             std::getline( std::cin, tmp );
-                            message += tmp + "\n";
-
-                            if( String::endsWith( tmp, "}\r" ) )
+                            buffer += tmp + "\n";
+                            if( String::endsWith( buffer, "\r\n\r\n" ) )
                             {
                                 break;
                             }
                         }
 
-                        std::vector< libstdhl::Network::LSP::Packet > packages;
-                        libstdhl::Network::LSP::Packet::fromString( message, packages );
-                        for( const auto& request : packages )
-                        {
-                            log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
-                            flush();
+                        libstdhl::Network::LSP::Protocol header( 0 );
+                        libstdhl::Network::LSP::Message payload;
 
-                            try
-                            {
-                                request.process( server );
-                            }
-                            catch( const std::exception& e )
-                            {
-                                log.error( e.what() );
-                            }
+                        log.info( prefix + "REQ: HEADER: " + buffer + "\n" );
+                        flush();
+                        try
+                        {
+                            header = libstdhl::Network::LSP::Protocol::parse( buffer );
+                        }
+                        catch( const std::exception& e )
+                        {
+                            log.error( e.what() );
+                            flush();
+                            continue;
+                        }
+
+                        const auto length = header.length();
+                        if( buffer.length() < length )
+                        {
+                            buffer.resize( length );
+                        }
+                        std::cin.read( &buffer[ 0 ], length );
+                        buffer[ length ] = '\0';
+
+                        log.info( prefix + "REQ: CONTENT: " + buffer + "\n" );
+                        flush();
+
+                        try
+                        {
+                            payload = libstdhl::Network::LSP::Message::parse( buffer );
+                        }
+                        catch( const std::exception& e )
+                        {
+                            log.error( e.what() );
+                            flush();
+                            continue;
+                        }
+
+                        libstdhl::Network::LSP::Packet request( header, payload );
+                        log.info( prefix + "REQ: " + request.dump( true ) + "\n" );
+                        flush();
+
+                        try
+                        {
+                            request.process( server );
+                        }
+                        catch( const std::exception& e )
+                        {
+                            log.error( e.what() );
                         }
 
                         server.flush( [&]( const libstdhl::Network::LSP::Message& response ) {
-                            log.info( prefix + "ACK: " + response.dump( true ) + "\n" );
-                            flush();
                             const auto packet = libstdhl::Network::LSP::Packet( response );
-                            std::cout << packet.dump();
+                            std::cout << packet.dump() << std::flush;
+                            log.info( prefix + "ACK: " + packet.dump( true ) + "\n" );
+                            flush();
                         } );
                     }
                     break;

@@ -34,6 +34,10 @@
 #include <libpass/analyze/LoadFilePass>
 #include <libstdhl/String>
 
+#include <chrono>
+#include <iostream>
+#include <thread>
+
 using namespace casmd;
 using namespace libpass;
 using namespace libstdhl;
@@ -52,26 +56,43 @@ InitializeResult LanguageServer::initialize( const InitializeParams& params )
 {
     m_log.info( __FUNCTION__ );
 
+    ServerCapabilities sc;
+
     // TextDocumentSyncOptions tdso;
     // tdso.setChange( TextDocumentSyncKind::Full );
     // tdso.setOpenClose( true );
-
-    ServerCapabilities sc;
+    // sc.setTextDocumentSync( tdso );
     sc.setTextDocumentSync( TextDocumentSyncKind::Full );
-    sc.setCodeActionProvider( true );
+
+    CompletionOptions cp;
+    // cp.setResolveProvider( false );
+    // cp.addTriggerCharacters( "." );
+    sc.setCompletionProvider( cp );
+
+    sc.setHoverProvider( true );
+    // sc.setDocumentSymbolProvider( true );
+    // sc.setReferencesProvider( true );
+    // sc.setDefinitionProvider( true );
+    // sc.setDocumentHighlightProvider( true );
+    // sc.setCodeActionProvider( true );
+    // sc.setRenameProvider( true );
+    // sc.setColorProvider( .. );
+    // sc.setFoldingRangeProvider( ... );
 
     ExecuteCommandOptions eco;
     eco.addCommand( "version" );
     eco.addCommand( "run" );
     sc.setExecuteCommandProvider( eco );
 
-    CodeLensOptions clo;
-    sc.setCodeLensProvider( clo );
-    sc.setHoverProvider( true );
+    // CodeLensOptions clo;
+    // sc.setCodeLensProvider( clo );
 
-    InitializeResult res( sc );
-    m_log.debug( res.dump() );
-    return res;
+    // TODO: FIXME: @ppaulweber: REMOVE this delay if LSP clients
+    // (e.g. monaco, vscode etc.) can handle a really fast initialization
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for( 1s );
+
+    return InitializeResult( sc );
 }
 
 void LanguageServer::initialized( void ) noexcept
@@ -132,7 +153,7 @@ void LanguageServer::textDocument_didOpen( const DidOpenTextDocumentParams& para
 
     result.first->second.setData( filestr );
 
-    // textDocument_analyze( result.first->second );
+    textDocument_analyze( fileuri );
 }
 
 void LanguageServer::textDocument_didChange( const DidChangeTextDocumentParams& params ) noexcept
@@ -151,7 +172,7 @@ void LanguageServer::textDocument_didChange( const DidChangeTextDocumentParams& 
 
     result->second.setData( params[ "contentChanges" ][ 0 ][ "text" ] );
 
-    // textDocument_analyze( result->second );
+    textDocument_analyze( fileuri );
 }
 
 HoverResult LanguageServer::textDocument_hover( const HoverParams& params )
@@ -180,8 +201,8 @@ CodeLensResult LanguageServer::textDocument_codeLens( const CodeLensParams& para
     CodeLensResult res;
     // res.addCodeLens( Range( Position( 1, 1 ), Position( 1, 1 ) ) );
 
-    const auto& fileuri = params.textDocument().uri();
-    textDocument_analyze( fileuri );
+    // const auto& fileuri = params.textDocument().uri();
+    // textDocument_analyze( fileuri );
 
     return res;
 }
