@@ -74,6 +74,10 @@ add_executable( ${PROJECT}
   $<TARGET_OBJECTS:${PROJECT}-cpp>
   )
 
+if( WIN32 )
+  target_link_libraries( ${PROJECT} ws2_32 )
+endif()
+
 set( PROJECT_EXE_FLAGS "-static" )
 if( APPLE )
   set( PROJECT_EXE_FLAGS "" )
