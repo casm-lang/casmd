@@ -40,7 +40,7 @@ package_git_submodule( libpass    master REQUIRED obj   ../../lib/pass    ../pas
 package_git_submodule( libcasm-ir master REQUIRED obj   ../../lib/casm-ir ../casm-ir lib/casm-ir )
 package_git_submodule( libcasm-rt master REQUIRED obj   ../../lib/casm-rt ../casm-rt lib/casm-rt )
 package_git_submodule( libcasm-fe master REQUIRED obj   ../../lib/casm-fe ../casm-fe lib/casm-fe )
-# package_git_submodule( libcasm-tc master REQUIRED obj   ../../lib/casm-tc ../casm-tc lib/casm-tc )
+package_git_submodule( libcasm-tc master REQUIRED obj   ../../lib/casm-tc ../casm-tc lib/casm-tc )
 package_git_submodule( libgtest   master REQUIRED build ../../lib/gtest   ../gtest   lib/gtest   )
 package_git_submodule( libhayai   master REQUIRED build ../../lib/hayai   ../hayai   lib/hayai   )
 package_git_deps(
@@ -50,7 +50,7 @@ package_git_deps(
   libpass>libcasm-ir
   libcasm-ir>libcasm-rt
   libcasm-rt>libcasm-fe
-  # libcasm-fe>libcasm-tc
+  libcasm-fe>libcasm-tc
   )
 
 find_package( Threads REQUIRED )
@@ -110,10 +110,10 @@ add_executable( ${PROJECT}-check
   $<TARGET_OBJECTS:${PROJECT}-test>
   )
 
-set( PROJECT_LD_TEST "-Wl,--whole-archive ${LIBCASM_TC_TEST} -Wl,--no-whole-archive" )
-if( APPLE )
-  set( PROJECT_LD_TEST "-Wl,-force_load ${LIBCASM_TC_TEST}" )
-endif()
+# set( PROJECT_LD_TEST "-Wl,--whole-archive ${LIBCASM_TC_TEST} -Wl,--no-whole-archive" )
+# if( APPLE )
+#   set( PROJECT_LD_TEST "-Wl,-force_load ${LIBCASM_TC_TEST}" )
+# endif()
 
 if( ${LIBCASM_TC_FOUND} )
   target_link_libraries( ${PROJECT}-check
@@ -136,10 +136,10 @@ add_executable( ${PROJECT}-run
   $<TARGET_OBJECTS:${PROJECT}-benchmark>
   )
 
-set( PROJECT_LD_BENCHMARK "-Wl,--whole-archive ${LIBCASM_TC_BENCHMARK} -Wl,--no-whole-archive" )
-if( APPLE )
-  set( PROJECT_LD_BENCHMARK "-Wl,-force_load ${LIBCASM_TC_BENCHMARK}" )
-endif()
+# set( PROJECT_LD_BENCHMARK "-Wl,--whole-archive ${LIBCASM_TC_BENCHMARK} -Wl,--no-whole-archive" )
+# if( APPLE )
+#   set( PROJECT_LD_BENCHMARK "-Wl,-force_load ${LIBCASM_TC_BENCHMARK}" )
+# endif()
 
 if( ${LIBCASM_TC_FOUND} )
   target_link_libraries( ${PROJECT}-run
