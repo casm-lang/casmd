@@ -79,20 +79,18 @@ if( APPLE )
   set( PROJECT_EXE_FLAGS "" )
 endif()
 
-set( PROJECT_EXE_LIBS )
-if( WIN32 )
-  set( PROJECT_EXE_LIBS ws2_32 )
-endif()
-
 if( ${LIBCASM_FE_FOUND} )
   target_link_libraries( ${PROJECT} PUBLIC ${PROJECT_EXE_FLAGS}
-    ${PROJECT_EXE_LIBS}
     ${LIBCASM_FE_LIBRARY}
     ${LIBCASM_RT_LIBRARY}
     ${LIBCASM_IR_LIBRARY}
     ${LIBPASS_LIBRARY}
     ${LIBSTDHL_LIBRARY}
     Threads::Threads
+    )
+
+  target_link_libraries( ${PROJECT} PUBLIC
+    ws2_32
     )
 endif()
 
