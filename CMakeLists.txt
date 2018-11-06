@@ -89,9 +89,11 @@ if( ${LIBCASM_FE_FOUND} )
     Threads::Threads
     )
 
-  target_link_libraries( ${PROJECT} PUBLIC
-    ws2_32
-    )
+  if( WIN32 )
+    target_link_libraries( ${PROJECT} PUBLIC
+      ws2_32
+      )
+  endif()
 endif()
 
 set( ${PROJECT}_VERSION ${GIT_REVTAG} )
