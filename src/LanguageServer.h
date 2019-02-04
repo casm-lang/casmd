@@ -39,7 +39,7 @@
 
 namespace casmd
 {
-    class LanguageServer final : public libstdhl::Network::LSP::ServerInterface
+    class LanguageServer final : public libstdhl::Network::LSP::Server
     {
       public:
         LanguageServer( libstdhl::Logger& log );
@@ -47,20 +47,42 @@ namespace casmd
         libstdhl::Network::LSP::InitializeResult initialize(
             const libstdhl::Network::LSP::InitializeParams& params ) override;
 
+        //
+        //
+        // Lifetime
+        //
+
         void initialized( void ) noexcept override;
 
         void shutdown( void ) override;
 
         void exit( void ) noexcept override;
 
+        void client_cancel( const libstdhl::Network::LSP::CancelParams& params ) noexcept override;
+
+        //
+        //
+        // Workspace
+        //
+
         libstdhl::Network::LSP::ExecuteCommandResult workspace_executeCommand(
             const libstdhl::Network::LSP::ExecuteCommandParams& params ) override;
+
+        //
+        //
+        // Text Synchronization
+        //
 
         void textDocument_didOpen(
             const libstdhl::Network::LSP::DidOpenTextDocumentParams& params ) noexcept override;
 
         void textDocument_didChange(
             const libstdhl::Network::LSP::DidChangeTextDocumentParams& params ) noexcept override;
+
+        //
+        //
+        // Language Features
+        //
 
         libstdhl::Network::LSP::HoverResult textDocument_hover(
             const libstdhl::Network::LSP::HoverParams& params ) override;
