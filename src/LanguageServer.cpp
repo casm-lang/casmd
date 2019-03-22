@@ -44,8 +44,13 @@ using namespace libstdhl;
 using namespace Network;
 using namespace LSP;
 
+//
+//
+// LanguageServer
+//
+
 LanguageServer::LanguageServer( Logger& log )
-: ServerInterface()
+: Server()
 , m_log( log )
 , m_files()
 {
@@ -95,6 +100,11 @@ InitializeResult LanguageServer::initialize( const InitializeParams& params )
     return InitializeResult( sc );
 }
 
+//
+//
+// LanguageServer Lifetime
+//
+
 void LanguageServer::initialized( void ) noexcept
 {
     m_log.info( __FUNCTION__ );
@@ -109,6 +119,16 @@ void LanguageServer::exit( void ) noexcept
 {
     m_log.info( __FUNCTION__ );
 }
+
+void LanguageServer::client_cancel( const CancelParams& params ) noexcept
+{
+    m_log.info( __FUNCTION__ );
+}
+
+//
+//
+// LanguageServer Workspace
+//
 
 ExecuteCommandResult LanguageServer::workspace_executeCommand( const ExecuteCommandParams& params )
 {
@@ -133,6 +153,11 @@ ExecuteCommandResult LanguageServer::workspace_executeCommand( const ExecuteComm
 
     return ExecuteCommandResult();
 }
+
+//
+//
+// LanguageServer Text Synchronization
+//
 
 void LanguageServer::textDocument_didOpen( const DidOpenTextDocumentParams& params ) noexcept
 {
@@ -175,6 +200,11 @@ void LanguageServer::textDocument_didChange( const DidChangeTextDocumentParams& 
     textDocument_analyze( fileuri );
 }
 
+//
+//
+// LanguageServer Language Features
+//
+
 HoverResult LanguageServer::textDocument_hover( const HoverParams& params )
 {
     m_log.info( __FUNCTION__ );
@@ -206,6 +236,11 @@ CodeLensResult LanguageServer::textDocument_codeLens( const CodeLensParams& para
 
     return res;
 }
+
+//
+//
+// LanguageServer (private)
+//
 
 void LanguageServer::textDocument_analyze( const DocumentUri& fileuri )
 {
