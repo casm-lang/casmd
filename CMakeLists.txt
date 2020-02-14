@@ -120,14 +120,16 @@ add_executable( ${PROJECT}-check
 #   set( PROJECT_LD_TEST "-Wl,-force_load ${LIBCASM_TC_TEST}" )
 # endif()
 
-target_link_libraries( ${PROJECT}-check
-  ${PROJECT_LD_TEST}
-  ${LIBPASS_ARCHIVE}
-  ${LIBSTDHL_ARCHIVE}
-  ${LIBGTEST_LIBRARY}
-  ${LIBGTEST_MAIN}
-  Threads::Threads
-  )
+if( ${LIBCASM_TC_FOUND} )
+  target_link_libraries( ${PROJECT}-check
+    ${PROJECT_LD_TEST}
+    ${LIBPASS_ARCHIVE}
+    ${LIBSTDHL_ARCHIVE}
+    ${LIBGTEST_LIBRARY}
+    ${LIBGTEST_MAIN}
+    Threads::Threads
+    )
+endif()
 
 #
 #
@@ -144,14 +146,16 @@ add_executable( ${PROJECT}-run
 #   set( PROJECT_LD_BENCHMARK "-Wl,-force_load ${LIBCASM_TC_BENCHMARK}" )
 # endif()
 
-target_link_libraries( ${PROJECT}-run
-  ${PROJECT_LD_BENCHMARK}
-  ${LIBPASS_ARCHIVE}
-  ${LIBSTDHL_ARCHIVE}
-  ${LIBHAYAI_LIBRARY}
-  ${LIBGTEST_LIBRARY}
-  Threads::Threads
-  )
+if( ${LIBCASM_TC_FOUND} )
+  target_link_libraries( ${PROJECT}-run
+    ${PROJECT_LD_BENCHMARK}
+    ${LIBPASS_ARCHIVE}
+    ${LIBSTDHL_ARCHIVE}
+    ${LIBHAYAI_LIBRARY}
+    ${LIBGTEST_LIBRARY}
+    Threads::Threads
+    )
+endif()
 
 #
 #
