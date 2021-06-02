@@ -41,6 +41,5 @@ endif
 INCLUDE = $(CONFIG)/.cmake/config.mk
 include $(INCLUDE)
 
-
-ENV_FLAGS  = $(ENV_SET) CASM_ARG_PRE="lsp --stdio" &&
-ENV_FLAGS += $(ENV_SET) CASM="$(OBJ)/$(TARGET)" &&
+ENV_FLAGS  = $(ENV_SET) CASM_ARG_PRE="lsp --stdio" $(ENV_CMD)
+ENV_FLAGS += $(ENV_SET) CASM=$(OBJ)$(ENV_SEP)$(TARGET) $(ENV_CMD)
