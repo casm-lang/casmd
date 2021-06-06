@@ -29,6 +29,7 @@
 
 #include <libcasm-fe/analyze/ConsistencyCheckPass>
 #include <libcasm-fe/execute/NumericExecutionPass>
+#include <libcasm-fe/execute/SymbolicExecutionPass>
 #include <libpass/PassManager>
 #include <libpass/PassResult>
 #include <libpass/analyze/LoadFilePass>
@@ -87,6 +88,7 @@ InitializeResult LanguageServer::initialize( const InitializeParams& params )
     ExecuteCommandOptions eco;
     eco.addCommand( "version" );
     eco.addCommand( "run" );
+    eco.addCommand( "trace" );
     sc.setExecuteCommandProvider( eco );
 
     // CodeLensOptions clo;
@@ -148,6 +150,11 @@ ExecuteCommandResult LanguageServer::workspace_executeCommand( const ExecuteComm
         {
             const DocumentUri fileuri = DocumentUri::fromString( "inmemory://model.casm" );
             return textDocument_execute( fileuri );
+        }
+        case String::value( "trace" ):
+        {
+            const DocumentUri fileuri = DocumentUri::fromString( "inmemory://model.casm" );
+            return textDocument_execute( fileuri, true );
         }
     }
 
@@ -282,7 +289,7 @@ void LanguageServer::textDocument_analyze( const DocumentUri& fileuri )
     textDocument_publishDiagnostics( res );
 }
 
-std::string LanguageServer::textDocument_execute( const DocumentUri& fileuri )
+std::string LanguageServer::textDocument_execute( const DocumentUri& fileuri, const u1 symbolic )
 {
     auto result = m_files.find( fileuri.toString() );
     if( result == m_files.end() )
@@ -302,7 +309,15 @@ std::string LanguageServer::textDocument_execute( const DocumentUri& fileuri )
 
     PassManager pm;
     pm.setDefaultResult( pr );
-    pm.setDefaultPass< libcasm_fe::NumericExecutionPass >();
+
+    if( not symbolic )
+    {
+        pm.setDefaultPass< libcasm_fe::NumericExecutionPass >();
+    }
+    else
+    {
+        pm.setDefaultPass< libcasm_fe::SymbolicExecutionPass >();
+    }
 
     std::ostringstream local;
     auto cout_buff = std::cout.rdbuf();

@@ -32,6 +32,7 @@
 */
 
 #include <libstdhl/Log>
+#include <libstdhl/Type>
 #include <libstdhl/data/file/TextDocument>
 #include <libstdhl/net/lsp/LSP>
 
@@ -39,6 +40,8 @@
 
 namespace casmd
 {
+    using u1 = libstdhl::u1;
+
     class LanguageServer final : public libstdhl::Network::LSP::Server
     {
       public:
@@ -96,7 +99,8 @@ namespace casmd
       private:
         void textDocument_analyze( const libstdhl::Network::LSP::DocumentUri& fileuri );
 
-        std::string textDocument_execute( const libstdhl::Network::LSP::DocumentUri& fileuri );
+        std::string textDocument_execute(
+            const libstdhl::Network::LSP::DocumentUri& fileuri, const u1 symbolic = false );
 
       private:
         libstdhl::Logger& m_log;
